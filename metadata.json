@@ -1,0 +1,5 @@
+{
+  "name": "NexusOps - Hierarchical Agent Supervisor",
+  "description": "A multi-agent collaboration system visualizing hierarchical supervision over a resource topology using Gemini 2.5.",
+  "requestFramePermissions": []
+}
