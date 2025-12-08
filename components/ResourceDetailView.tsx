@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { TopologyNode, Team, TopologyGroup, Agent, AgentRole, AgentStatus, AgentConfig } from '../types';
+import { TopologyNode, Team, TopologyGroup, Agent, AgentRole, AgentStatus, AgentConfig, DiagnosisSession } from '../types';
 import { AgentConfigModal } from './AgentConfigModal';
 import { 
   ChevronLeft, 
@@ -26,13 +27,20 @@ import {
   X,
   Plus,
   Trash2,
-  Check
+  Check,
+  History,
+  Clock,
+  AlertOctagon,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 
 interface ResourceDetailViewProps {
   node: TopologyNode;
   team?: Team;
   associatedTopologyGroups: TopologyGroup[];
+  analysisHistory?: DiagnosisSession[];
+  onLoadSession?: (session: DiagnosisSession) => void;
   onBack: () => void;
   onNavigateToTopology: (topologyId: string) => void;
   onUpdateNode: (node: TopologyNode) => void;
@@ -47,6 +55,8 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
   node, 
   team, 
   associatedTopologyGroups, 
+  analysisHistory = [],
+  onLoadSession,
   onBack, 
   onNavigateToTopology,
   onUpdateNode,
@@ -54,7 +64,7 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
   onAddWorker,
   onRemoveWorker
 }) => {
-  const [activeTab, setActiveTab] = useState<'info' | 'topologies' | 'agents'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'topologies' | 'agents' | 'history'>('info');
   
   // Edit Mode State for Basic Info
   const [isEditing, setIsEditing] = useState(false);
@@ -81,6 +91,11 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
   const [tgSearchTerm, setTgSearchTerm] = useState('');
   const [tgCurrentPage, setTgCurrentPage] = useState(1);
   const [tgViewMode, setTgViewMode] = useState<'list' | 'card'>('card');
+
+  // History Tab State
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyViewMode, setHistoryViewMode] = useState<'list' | 'card'>('list');
   
   const getNodeIcon = (type: string, size: number = 20) => {
     switch (type) {
@@ -121,6 +136,25 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
   const handleTgSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTgSearchTerm(e.target.value);
     setTgCurrentPage(1); // Reset to first page on search
+  };
+
+  // History Filtering & Pagination Logic
+  const filteredHistory = useMemo(() => {
+      return analysisHistory.filter(h => 
+          h.query.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+          h.status.toLowerCase().includes(historySearchTerm.toLowerCase())
+      ).slice().reverse(); // Show newest first
+  }, [analysisHistory, historySearchTerm]);
+
+  const totalHistoryPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
+  const paginatedHistory = filteredHistory.slice(
+      (historyCurrentPage - 1) * ITEMS_PER_PAGE,
+      historyCurrentPage * ITEMS_PER_PAGE
+  );
+
+  const handleHistorySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setHistorySearchTerm(e.target.value);
+      setHistoryCurrentPage(1);
   };
 
   // Edit Handlers
@@ -256,6 +290,13 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
               >
                   <Users size={16} /> Agent Team
                   <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-400">{team ? team.members.length + 1 : 0}</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('history')}
+                className={`flex items-center gap-2 py-4 text-sm font-bold border-b-2 transition-all ${activeTab === 'history' ? 'text-cyan-400 border-cyan-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+              >
+                  <History size={16} /> Analysis History
+                  <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-400">{analysisHistory.length}</span>
               </button>
           </div>
       </div>
@@ -587,7 +628,7 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
                             <button 
                                 onClick={() => setTgCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={tgCurrentPage === 1}
-                                className="p-1.5 rounded bg-slate-950 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
+                                className="p-1.5 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
                             >
                                 <ChevronLeft size={16} />
                             </button>
@@ -597,7 +638,7 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
                             <button 
                                 onClick={() => setTgCurrentPage(prev => Math.min(totalTgPages, prev + 1))}
                                 disabled={tgCurrentPage === totalTgPages}
-                                className="p-1.5 rounded bg-slate-950 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
+                                className="p-1.5 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
                             >
                                 <ChevronRight size={16} />
                             </button>
@@ -696,6 +737,197 @@ const ResourceDetailView: React.FC<ResourceDetailViewProps> = ({
                          </div>
                       )}
                    </div>
+                </div>
+            )}
+
+            {/* Tab 4: Analysis History */}
+            {activeTab === 'history' && (
+                <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm flex-1 flex flex-col">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-4 shrink-0">
+                            <h2 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                                <History size={16} className="text-cyan-500" /> Diagnosis Records
+                            </h2>
+                            
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                {/* Search Bar */}
+                                <div className="relative flex-1 md:w-64">
+                                    <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search history..."
+                                        value={historySearchTerm}
+                                        onChange={handleHistorySearch}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded py-2 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-cyan-500 placeholder-slate-600"
+                                    />
+                                </div>
+
+                                {/* View Toggle */}
+                                <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800 shrink-0">
+                                    <button
+                                        onClick={() => setHistoryViewMode('list')}
+                                        className={`p-1.5 rounded transition-all ${historyViewMode === 'list' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                        title="List View"
+                                    >
+                                        <LayoutList size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => setHistoryViewMode('card')}
+                                        className={`p-1.5 rounded transition-all ${historyViewMode === 'card' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                        title="Card View"
+                                    >
+                                        <LayoutGrid size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto custom-scrollbar">
+                            {paginatedHistory.length > 0 ? (
+                                historyViewMode === 'list' ? (
+                                    // List View
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-950 sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">Status</th>
+                                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">Query / Intent</th>
+                                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">Date & Time</th>
+                                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">Findings</th>
+                                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                                            {paginatedHistory.map(session => (
+                                                <tr key={session.id} className="hover:bg-slate-900 transition-colors group">
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                                            session.status === 'Running' ? 'bg-cyan-900/50 text-cyan-400 border-cyan-700 animate-pulse' : 
+                                                            session.status === 'Failed' ? 'bg-red-950 text-red-400 border-red-900' :
+                                                            'bg-slate-800 text-slate-400 border-slate-700'
+                                                        }`}>
+                                                            {session.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-sm text-slate-300 font-medium max-w-xs truncate" title={session.query}>{session.query}</td>
+                                                    <td className="p-4 text-xs text-slate-500 font-mono">
+                                                        {new Date(session.timestamp).toLocaleDateString()} <span className="text-slate-600">|</span> {new Date(session.timestamp).toLocaleTimeString()}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex gap-2">
+                                                            {session.findings.critical > 0 && (
+                                                                <span className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/30 px-1.5 rounded border border-red-900/30">
+                                                                    <AlertOctagon size={10} /> {session.findings.critical} Crit
+                                                                </span>
+                                                            )}
+                                                            {session.findings.warnings > 0 && (
+                                                                <span className="flex items-center gap-1 text-[10px] text-yellow-500 bg-yellow-950/30 px-1.5 rounded border border-yellow-900/30">
+                                                                    <AlertTriangle size={10} /> {session.findings.warnings} Warn
+                                                                </span>
+                                                            )}
+                                                            {session.findings.critical === 0 && session.findings.warnings === 0 && (
+                                                                <span className="text-[10px] text-green-500 bg-green-950/30 px-2 py-0.5 rounded border border-green-900/30">
+                                                                    Clean
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <button 
+                                                            onClick={() => onLoadSession && onLoadSession(session)}
+                                                            className="p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-cyan-400 transition-colors"
+                                                            title="View Analysis Log"
+                                                        >
+                                                            <ArrowRight size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    // Card View
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {paginatedHistory.map(session => (
+                                            <div 
+                                                key={session.id} 
+                                                onClick={() => onLoadSession && onLoadSession(session)}
+                                                className="group p-4 bg-slate-950 border border-slate-800 rounded-lg hover:border-cyan-500/50 hover:bg-slate-900 transition-all cursor-pointer flex flex-col h-[180px]"
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                                        session.status === 'Running' ? 'bg-cyan-900/50 text-cyan-400 border-cyan-700 animate-pulse' : 
+                                                        session.status === 'Failed' ? 'bg-red-950 text-red-400 border-red-900' :
+                                                        'bg-slate-800 text-slate-400 border-slate-700'
+                                                    }`}>
+                                                        {session.status}
+                                                    </span>
+                                                    <div className="text-xs text-slate-500 font-mono">
+                                                        {new Date(session.timestamp).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                                
+                                                <h3 className="text-sm font-bold text-slate-200 line-clamp-2 mb-3 group-hover:text-cyan-300 transition-colors">"{session.query}"</h3>
+                                                
+                                                <div className="mt-auto pt-3 border-t border-slate-900 flex justify-between items-center">
+                                                    <div className="flex gap-2">
+                                                        {session.findings.critical > 0 && (
+                                                            <span className="flex items-center gap-1 text-[10px] text-red-500">
+                                                                <AlertOctagon size={10} /> {session.findings.critical}
+                                                            </span>
+                                                        )}
+                                                        {session.findings.warnings > 0 && (
+                                                            <span className="flex items-center gap-1 text-[10px] text-yellow-500">
+                                                                <AlertTriangle size={10} /> {session.findings.warnings}
+                                                            </span>
+                                                        )}
+                                                        {session.findings.critical === 0 && session.findings.warnings === 0 && (
+                                                            <span className="text-[10px] text-green-500">Clean</span>
+                                                        )}
+                                                    </div>
+                                                    <ArrowRight size={14} className="text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full border border-dashed border-slate-800 rounded-lg bg-slate-950/30 text-slate-500 min-h-[300px]">
+                                    <Clock size={48} className="opacity-20 mb-4" />
+                                    {historySearchTerm ? (
+                                        <p className="text-base font-medium">No records match "{historySearchTerm}".</p>
+                                    ) : (
+                                        <>
+                                            <p className="text-base font-medium">No analysis history found.</p>
+                                            <p className="text-sm opacity-60 mt-1">Run a diagnosis including this resource to see records here.</p>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {totalHistoryPages > 1 && (
+                            <div className="mt-6 flex justify-center items-center gap-4 shrink-0">
+                                <button 
+                                    onClick={() => setHistoryCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={historyCurrentPage === 1}
+                                    className="p-1.5 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <span className="text-xs text-slate-400">
+                                    Page <span className="text-white font-bold">{historyCurrentPage}</span> of <span className="text-white font-bold">{totalHistoryPages}</span>
+                                </span>
+                                <button 
+                                    onClick={() => setHistoryCurrentPage(prev => Math.min(totalHistoryPages, prev + 1))}
+                                    disabled={historyCurrentPage === totalHistoryPages}
+                                    className="p-1.5 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
             

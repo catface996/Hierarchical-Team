@@ -97,6 +97,7 @@ export interface DiagnosisSession {
   findings: { warnings: number; critical: number };
   scope: string; // 'Global' or Topology Name
   scopeId?: string; // ID for linking back to specific topology
+  relatedNodeIds?: string[]; // IDs of nodes involved in this session
 }
 
 export interface PromptTemplate {
@@ -124,4 +125,16 @@ export interface AgentTool {
   description: string;
   type: 'Function' | 'Integration' | 'Retrieval';
   createdAt: number;
+}
+
+export interface Report {
+  id: string;
+  title: string;
+  type: 'Diagnosis' | 'Audit' | 'Performance' | 'Security';
+  status: 'Draft' | 'Final' | 'Archived';
+  createdAt: number;
+  author: string; // e.g., "Global Supervisor"
+  summary: string;
+  content: string; // Full text content
+  tags: string[];
 }

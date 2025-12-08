@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexusOps - Hierarchical Agent System</title>
+    <title>EntropyOps</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -61,16 +61,44 @@
         animation: traffic-flow 0.5s linear infinite;
         stroke-linecap: round;
       }
+
+      /* Markdown Content Styles */
+      .prose h1, .prose h2, .prose h3 {
+        color: #f1f5f9;
+        font-weight: 700;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+      }
+      .prose h1 { font-size: 1.5rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+      .prose h2 { font-size: 1.25rem; }
+      .prose h3 { font-size: 1.1rem; color: #cbd5e1; }
+      .prose p { margin-bottom: 1em; line-height: 1.6; color: #cbd5e1; }
+      .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; color: #cbd5e1; }
+      .prose ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; color: #cbd5e1; }
+      .prose strong { color: #fff; font-weight: 600; }
+      .prose code { background: #1e293b; padding: 0.2em 0.4em; rounded: 4px; font-size: 0.85em; color: #e2e8f0; }
+      .prose pre { background: #0f172a; padding: 1em; border-radius: 8px; overflow-x: auto; border: 1px solid #1e293b; margin-bottom: 1em; }
+      .prose pre code { background: transparent; padding: 0; color: inherit; }
+      .prose blockquote { border-left: 4px solid #3b82f6; padding-left: 1em; color: #94a3b8; font-style: italic; margin-bottom: 1em; }
+      .prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.5em; }
+      .prose th { text-align: left; padding: 0.75rem; border-bottom: 1px solid #334155; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; }
+      .prose td { padding: 0.75rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-size: 0.9rem; }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "d3": "https://aistudiocdn.com/d3@^7.9.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0"
+    "lucide-react": "https://esm.sh/lucide-react@0.303.0?external=react,react-dom",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1?external=react,react-dom",
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
+    "mermaid": "https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.esm.min.mjs",
+    "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom"
   }
 }
 </script>

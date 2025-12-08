@@ -7,7 +7,9 @@ import {
   INITIAL_TOPOLOGY_GROUPS,
   INITIAL_PROMPT_TEMPLATES,
   INITIAL_MODELS,
-  INITIAL_TOOLS
+  INITIAL_TOOLS,
+  INITIAL_REPORTS,
+  INITIAL_SESSIONS
 } from './services/mockData';
 import { 
   Team, 
@@ -22,7 +24,8 @@ import {
   AgentRole,
   PromptTemplate,
   AIModel,
-  AgentTool
+  AgentTool,
+  Report
 } from './types';
 import { 
   generateGlobalPlan, 
@@ -42,17 +45,31 @@ import AgentManagement from './components/AgentManagement';
 import PromptManagement from './components/PromptManagement';
 import ModelManagement from './components/ModelManagement';
 import ToolManagement from './components/ToolManagement';
-import { RotateCcw, Activity, Terminal, Map, Send, Zap, GripVertical, LayoutDashboard, Database, Network, X, Stethoscope, Home, Users, FileText } from 'lucide-react';
+import ReportManagement from './components/ReportManagement';
+import ReportDetailView from './components/ReportDetailView';
+import AuthPage from './components/AuthPage';
+import { SettingsModal, AppSettings } from './components/SettingsModal';
+import { RotateCcw, Activity, Terminal, Map, Send, Zap, GripVertical, LayoutDashboard, Database, Network, X, Stethoscope, Home, Users, FileText, LogOut, Settings } from 'lucide-react';
 
 const App: React.FC = () => {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings>({ language: 'en', theme: 'dark' });
+
   // Navigation State
   // 'dashboard' is now the new High Level Dashboard
   // 'diagnosis' is the old interactive Command Center view
-  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'prompts' | 'models' | 'tools'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'prompts' | 'models' | 'tools' | 'reports' | 'report-detail'>('dashboard');
   const [selectedTopologyId, setSelectedTopologyId] = useState<string | null>(null);
   
   // Resource Detail State
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+
+  // Report Detail State
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   // Diagnosis State (Scopes the dashboard to a specific topology)
   const [diagnosisScope, setDiagnosisScope] = useState<TopologyGroup | null>(null);
@@ -64,6 +81,7 @@ const App: React.FC = () => {
   const [prompts, setPrompts] = useState<PromptTemplate[]>(INITIAL_PROMPT_TEMPLATES);
   const [models, setModels] = useState<AIModel[]>(INITIAL_MODELS);
   const [tools, setTools] = useState<AgentTool[]>(INITIAL_TOOLS);
+  const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
 
   const [globalAgent, setGlobalAgent] = useState<Agent>(GLOBAL_SUPERVISOR);
   const [logs, setLogs] = useState<LogMessage[]>([]);
@@ -73,8 +91,8 @@ const App: React.FC = () => {
   const [activeTeamIds, setActiveTeamIds] = useState<Set<string>>(new Set());
   const [focusTarget, setFocusTarget] = useState<{ agentId: string; ts: number } | null>(null);
 
-  // History State for Dashboard
-  const [sessionHistory, setSessionHistory] = useState<DiagnosisSession[]>([]);
+  // History State for Dashboard - Initialize with Mock Data
+  const [sessionHistory, setSessionHistory] = useState<DiagnosisSession[]>(INITIAL_SESSIONS);
 
   // Layout State
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
@@ -85,23 +103,15 @@ const App: React.FC = () => {
 
   // Initialization - Auto-generate teams when topology changes
   useEffect(() => {
-    // Only generate teams for new nodes to preserve state of existing teams
-    // Or just regenerate all if simplifed. For now, let's just regenerate to sync with topology updates (Delete/Add)
-    // In a real app, we would diff. Here we reconstruct but try to preserve IDs if possible or just reset.
-    // To allow persistence of agent config, we should map existing teams.
-    
     setTeams(prevTeams => {
         return topology.nodes.map(node => {
             const existingTeam = prevTeams.find(t => t.resourceId === node.id);
             if (existingTeam) {
-                 // Update name if label changed, but keep agents
                  return { ...existingTeam, name: `${node.label} Team` };
             }
             return generateTeamForNode(node.id, node.label, node.type);
         });
     });
-    
-    // Note: This effect runs on every topology change (add/remove node).
   }, [topology]);
 
   // Derived State for Dashboard (Filtered by Diagnosis Scope)
@@ -397,6 +407,12 @@ const App: React.FC = () => {
     addLog("system-admin", "System", `Tool deleted: ${id}`, "system");
   };
 
+  // --- Report Logic ---
+  const handleViewReport = (report: Report) => {
+    setSelectedReportId(report.id);
+    setCurrentView('report-detail');
+  };
+
 
   // --- Resizing Logic ---
   const startResizingLeft = useCallback(() => {
@@ -465,11 +481,11 @@ const App: React.FC = () => {
       status: 'Running',
       findings: { warnings: 0, critical: 0 },
       scope: diagnosisScope ? diagnosisScope.name : 'Global System',
-      scopeId: diagnosisScope?.id
+      scopeId: diagnosisScope?.id,
+      relatedNodeIds: [] // Will be populated after planning
     }]);
     
     // Determine context (Global or Scoped)
-    // If diagnosisScope is active, we act as if only the scoped teams exist.
     const teamsToConsider = diagnosisScope ? dashboardTeams : teams;
 
     // 1. Global Supervisor Planning
@@ -478,7 +494,7 @@ const App: React.FC = () => {
     
     await new Promise(r => setTimeout(r, 1000));
     
-    const globalPlan = await generateGlobalPlan(userQuery, topology, teamsToConsider); // Pass filtered teams
+    const globalPlan = await generateGlobalPlan(userQuery, topology, teamsToConsider);
     
     if (globalPlan.length === 0) {
       addLog(globalAgent.id, globalAgent.name, "No relevant teams found within current scope for this request.", "report");
@@ -503,6 +519,11 @@ const App: React.FC = () => {
     });
     setActiveNodeIds(planNodeIds);
     setActiveTeamIds(planTeamIds);
+
+    // Update Session with related Nodes
+    setSessionHistory(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, relatedNodeIds: Array.from(planNodeIds) } : s
+    ));
 
     let sessionWarnings = 0;
     let sessionCritical = 0;
@@ -642,6 +663,19 @@ const App: React.FC = () => {
     setFocusTarget({ agentId, ts: Date.now() });
   }, []);
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    // Reset views if needed
+    setCurrentView('dashboard');
+  };
+
+  // ------------------------------------------
+  // AUTHENTICATION GATE
+  // ------------------------------------------
+  if (!isAuthenticated) {
+    return <AuthPage onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   // Determine Main Content based on View
   const renderMainContent = () => {
     // New Dashboard View
@@ -676,12 +710,17 @@ const App: React.FC = () => {
           // Find associated data
           const team = teams.find(t => t.resourceId === node.id);
           const associatedTopologyGroups = topologyGroups.filter(tg => tg.nodeIds.includes(node.id));
+          
+          // Filter history to this node
+          const history = sessionHistory.filter(s => s.relatedNodeIds?.includes(node.id));
 
           return (
              <ResourceDetailView 
                node={node}
                team={team}
                associatedTopologyGroups={associatedTopologyGroups}
+               analysisHistory={history}
+               onLoadSession={handleLoadSession}
                onBack={() => setCurrentView('resources')}
                onNavigateToTopology={handleEnterTopology}
                onUpdateNode={handleUpdateNode}
@@ -779,6 +818,24 @@ const App: React.FC = () => {
           onBack={() => setCurrentView('agents')}
         />
       );
+    }
+
+    if (currentView === 'reports') {
+      return (
+        <ReportManagement 
+          reports={reports}
+          onViewReport={handleViewReport}
+        />
+      );
+    }
+
+    if (currentView === 'report-detail' && selectedReportId) {
+       const report = reports.find(r => r.id === selectedReportId);
+       if (report) {
+         return <ReportDetailView report={report} onBack={() => setCurrentView('reports')} />;
+       }
+       setCurrentView('reports');
+       return null;
     }
 
     // Default Diagnosis / Command Center View (Formerly Dashboard)
@@ -905,7 +962,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
                 <Activity className="text-cyan-400" size={20} />
-                <h1 className="text-lg font-bold tracking-tight text-white">NexusOps <span className="text-slate-500 font-normal text-sm ml-2 hidden sm:inline">Hierarchical Multi-Agent System</span></h1>
+                <h1 className="text-lg font-bold tracking-tight text-white">EntropyOps <span className="text-slate-500 font-normal text-sm ml-2 hidden sm:inline">Hierarchical Multi-Agent System</span></h1>
             </div>
             
             {/* Nav Tabs */}
@@ -933,6 +990,12 @@ const App: React.FC = () => {
                   className={`flex items-center gap-2 px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${['agents', 'prompts', 'models', 'tools'].includes(currentView) ? 'bg-cyan-900/50 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                     <Users size={14} /> Agents
+                </button>
+                <button 
+                  onClick={() => setCurrentView('reports')}
+                  className={`flex items-center gap-2 px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${['reports', 'report-detail'].includes(currentView) ? 'bg-cyan-900/50 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    <FileText size={14} /> Reports
                 </button>
                 
                 {currentView === 'diagnosis' && (
@@ -965,6 +1028,24 @@ const App: React.FC = () => {
                 <span className={`w-2 h-2 rounded-full ${isSimulating ? 'bg-cyan-400' : 'bg-slate-500'}`}></span>
                 {isSimulating ? 'SIMULATION ACTIVE' : 'SYSTEM IDLE'}
             </div>
+
+            <div className="h-6 w-px bg-slate-800"></div>
+
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded transition-colors"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </button>
+
+            <button 
+              onClick={handleLogout}
+              className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded transition-colors"
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
         </div>
       </header>
 
@@ -972,6 +1053,18 @@ const App: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         {renderMainContent()}
       </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+          <SettingsModal 
+             settings={appSettings} 
+             onClose={() => setIsSettingsOpen(false)}
+             onSave={(newSettings) => {
+                 setAppSettings(newSettings);
+                 setIsSettingsOpen(false);
+             }}
+          />
+      )}
     </div>
   );
 };
