@@ -378,7 +378,7 @@ const DiscoveryInbox: React.FC<DiscoveryInboxProps> = ({ discoveredNodes, discov
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+      <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
         <button
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1}

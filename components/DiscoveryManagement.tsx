@@ -254,7 +254,7 @@ const DiscoveryManagement: React.FC<DiscoveryManagementProps> = ({ sources, onAd
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+      <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
         <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold text-slate-500 tracking-widest">Connector segment</span>
