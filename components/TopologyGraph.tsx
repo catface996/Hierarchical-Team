@@ -1,27 +1,98 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Topology } from '../types';
+import { Topology, TopologyLink } from '../types';
+
+// 链接类型选项
+const LINK_TYPES = [
+  { value: 'call', label: 'API Call', color: '#0891b2', description: '服务间 API 调用' },
+  { value: 'dependency', label: 'Dependency', color: '#64748b', description: '依赖关系' },
+  { value: 'deployment', label: 'Deployment', color: '#334155', description: '部署关系' },
+];
+
+interface LinkingState {
+  sourceNodeId: string;
+  sourcePort: 'top' | 'bottom';
+}
 
 interface TopologyGraphProps {
   data: Topology;
   activeNodeIds: Set<string>;
   onNodeClick: (nodeId: string) => void;
   onNodeDoubleClick?: (nodeId: string) => void;
+  onCreateLink?: (link: { source: string; target: string; type: string }) => void;
 }
 
-const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNodeClick, onNodeDoubleClick }) => {
+const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNodeClick, onNodeDoubleClick, onCreateLink }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeSelectionRef = useRef<d3.Selection<SVGGElement, any, any, any> | null>(null);
 
+  // 链接状态管理
+  const [linkingState, setLinkingState] = useState<LinkingState | null>(null);
+  const [pendingLink, setPendingLink] = useState<{ source: string; target: string } | null>(null);
+  const [showLinkTypeModal, setShowLinkTypeModal] = useState(false);
+  const [linkCreatedMessage, setLinkCreatedMessage] = useState<string | null>(null);
+
   const onNodeClickRef = useRef(onNodeClick);
   const onNodeDoubleClickRef = useRef(onNodeDoubleClick);
+  const onCreateLinkRef = useRef(onCreateLink);
+
+  // 处理连接点点击
+  const handlePortClick = useCallback((nodeId: string, port: 'top' | 'bottom', event: Event) => {
+    event.stopPropagation();
+
+    if (!linkingState) {
+      // 开始链接
+      setLinkingState({ sourceNodeId: nodeId, sourcePort: port });
+    } else {
+      // 完成链接
+      if (linkingState.sourceNodeId !== nodeId) {
+        // 根据端口决定 source 和 target
+        const source = linkingState.sourcePort === 'bottom' ? linkingState.sourceNodeId : nodeId;
+        const target = linkingState.sourcePort === 'bottom' ? nodeId : linkingState.sourceNodeId;
+        setPendingLink({ source, target });
+        setShowLinkTypeModal(true);
+      }
+      setLinkingState(null);
+    }
+  }, [linkingState]);
+
+  // 取消链接
+  const cancelLinking = useCallback(() => {
+    setLinkingState(null);
+    setPendingLink(null);
+    setShowLinkTypeModal(false);
+  }, []);
+
+  // 确认创建链接
+  const confirmCreateLink = useCallback((linkType: string) => {
+    if (pendingLink && onCreateLinkRef.current) {
+      onCreateLinkRef.current({
+        source: pendingLink.source,
+        target: pendingLink.target,
+        type: linkType
+      });
+      // 显示成功消息
+      const sourceName = data.nodes.find(n => n.id === pendingLink.source)?.label || pendingLink.source;
+      const targetName = data.nodes.find(n => n.id === pendingLink.target)?.label || pendingLink.target;
+      const linkLabel = LINK_TYPES.find(l => l.value === linkType)?.label || linkType;
+      setLinkCreatedMessage(`已创建 ${linkLabel} 链接: ${sourceName} → ${targetName}`);
+      setTimeout(() => setLinkCreatedMessage(null), 3000);
+    }
+    setPendingLink(null);
+    setShowLinkTypeModal(false);
+  }, [pendingLink, data.nodes]);
+
+  const handlePortClickRef = useRef(handlePortClick);
+  // 同步更新 ref，确保点击时能获取最新的 handler
+  handlePortClickRef.current = handlePortClick;
 
   useEffect(() => {
     onNodeClickRef.current = onNodeClick;
     onNodeDoubleClickRef.current = onNodeDoubleClick;
-  }, [onNodeClick, onNodeDoubleClick]);
+    onCreateLinkRef.current = onCreateLink;
+  }, [onNodeClick, onNodeDoubleClick, onCreateLink]);
 
   // 高亮活跃节点
   useEffect(() => {
@@ -39,6 +110,28 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
     // 添加/移除脉冲动画类
     nodeSelectionRef.current.classed("node-active", (d: any) => activeNodeIds.has(d.data?.id || d.id));
   }, [activeNodeIds]);
+
+  // 高亮链接模式中的源端口
+  useEffect(() => {
+    if (!nodeSelectionRef.current) return;
+
+    // 重置所有端口样式
+    nodeSelectionRef.current.selectAll("circle.port")
+      .attr("fill", "#334155")
+      .attr("stroke", "#64748b")
+      .attr("r", 8)
+      .attr("filter", "none");
+
+    // 高亮源节点的端口
+    if (linkingState) {
+      nodeSelectionRef.current.filter((d: any) => d.data.id === linkingState.sourceNodeId)
+        .select(`circle.port-${linkingState.sourcePort}`)
+        .attr("fill", "#22d3ee")
+        .attr("stroke", "#06b6d4")
+        .attr("r", 10)
+        .attr("filter", "drop-shadow(0 0 8px rgba(34, 211, 238, 0.8))");
+    }
+  }, [linkingState]);
 
   const getTypeColor = (type: string, isShadow?: boolean) => {
     if (isShadow) return '#a855f7'; // Purple for discovery
@@ -94,6 +187,9 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       (inDegree.get(n.id) || 0) === 0 && nodesInCallFlow.has(n.id)
     );
 
+    // 4.1 找出孤立节点（没有任何call链路的节点）
+    const orphanNodes = data.nodes.filter(n => !nodesInCallFlow.has(n.id));
+
     // 5. 构建层级数据结构（使用BFS避免循环）
     const visited = new Set<string>();
     const buildHierarchy = (nodeId: string): any => {
@@ -113,14 +209,24 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       };
     };
 
+    // 构建树形结构的子节点
+    const treeChildren = rootNodes.map(n => {
+      visited.clear();
+      return buildHierarchy(n.id);
+    }).filter(Boolean);
+
+    // 将孤立节点也加入（作为独立的叶子节点）
+    const orphanChildren = orphanNodes.map(n => ({
+      ...n,
+      isOrphan: true, // 标记为孤立节点
+      children: undefined
+    }));
+
     const hierarchyData = {
       id: '__virtual_root__',
       label: 'Root',
       type: 'virtual',
-      children: rootNodes.map(n => {
-        visited.clear();
-        return buildHierarchy(n.id);
-      }).filter(Boolean)
+      children: [...treeChildren, ...orphanChildren]
     };
 
     // 6. 使用 d3.hierarchy 和 d3.tree 创建布局
@@ -246,15 +352,28 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .append("mpath")
       .attr("href", (d: any, i: number) => `#link-${i}`);
 
-    // 处理非树形链接（dependency, deployment, inferred 类型）
-    const nonTreeLinks = data.links
-      .filter(l => l.type && l.type !== 'call')
+    // 收集树中已渲染的 call 链接
+    const renderedCallLinks = new Set<string>();
+    treeLinks.forEach((d: any) => {
+      const sourceId = d.source.data.id;
+      const targetId = d.target.data.id;
+      renderedCallLinks.add(`${sourceId}->${targetId}`);
+    });
+
+    // 处理额外链接：非 call 类型 + 不在树中的 call 类型
+    const extraLinks = data.links
       .map(l => ({
         source: typeof l.source === 'object' ? (l.source as any).id : l.source,
         target: typeof l.target === 'object' ? (l.target as any).id : l.target,
-        type: l.type,
+        type: l.type || 'call',
         confidence: l.confidence
-      }));
+      }))
+      .filter(l => {
+        // 非 call 类型总是显示
+        if (l.type !== 'call') return true;
+        // call 类型：只有不在树中的才额外显示
+        return !renderedCallLinks.has(`${l.source}->${l.target}`);
+      });
 
     // 创建节点位置映射
     const nodePositions = new Map<string, { x: number, y: number }>();
@@ -262,22 +381,31 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       nodePositions.set(d.data.id, { x: d.x, y: d.y });
     });
 
-    // 绘制非树形链接
+    // 绘制额外链接（非树形 call 链接 + dependency/deployment/inferred）
     const extraLinkGroup = g.append("g")
       .selectAll("path")
-      .data(nonTreeLinks.filter(l => nodePositions.has(l.source) && nodePositions.has(l.target)))
+      .data(extraLinks.filter(l => nodePositions.has(l.source) && nodePositions.has(l.target)))
       .join("path")
       .attr("fill", "none")
-      .attr("stroke-width", 1.5)
-      .attr("stroke", d => d.type === 'inferred' ? '#c084fc' : d.type === 'deployment' ? '#334155' : '#64748b')
+      .attr("stroke-width", d => d.type === 'call' ? 2 : 1.5)
+      .attr("stroke", d => {
+        if (d.type === 'call') return '#0891b2'; // cyan for call links
+        if (d.type === 'inferred') return '#c084fc';
+        if (d.type === 'deployment') return '#334155';
+        return '#64748b'; // dependency
+      })
       .attr("stroke-dasharray", d => (d.type === 'dependency' || d.type === 'inferred') ? "6,4" : "none")
-      .attr("opacity", d => d.type === 'deployment' ? 0.3 : 0.5)
+      .attr("opacity", d => {
+        if (d.type === 'call') return 0.7;
+        if (d.type === 'deployment') return 0.3;
+        return 0.5;
+      })
       .attr("d", d => {
         const source = nodePositions.get(d.source)!;
         const target = nodePositions.get(d.target)!;
         const mx = (source.x + target.x) / 2;
         const my = (source.y + target.y) / 2;
-        // 使用弧线区分非树形链接
+        // 使用弧线区分额外链接
         const dx = target.x - source.x;
         const dy = target.y - source.y;
         const dr = Math.sqrt(dx * dx + dy * dy) * 0.5;
@@ -319,6 +447,10 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
 
     // 拖拽行为
     const drag = d3.drag<SVGGElement, any>()
+      .filter(event => {
+        // 排除端口点击，避免拖拽干扰链接操作
+        return !event.target.classList.contains('port');
+      })
       .on("start", function(event, d) {
         d3.select(this).raise().classed("dragging", true);
       })
@@ -341,7 +473,10 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("cursor", "grab")
       .call(drag)
       .on("click", (e, d: any) => {
-        if (!e.defaultPrevented) onNodeClickRef.current(d.data.id);
+        // 排除端口点击
+        if (!e.defaultPrevented && !e.target.classList.contains('port')) {
+          onNodeClickRef.current(d.data.id);
+        }
       })
       .on("dblclick", (e, d: any) => onNodeDoubleClickRef.current?.(d.data.id));
 
@@ -357,10 +492,21 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("y", -rectHeight / 2)
       .attr("rx", 8)
       .attr("ry", 8)
-      .attr("fill", (d: any) => d.data.isShadow ? "rgba(88, 28, 135, 0.2)" : "#0f172a")
-      .attr("stroke", (d: any) => getTypeColor(d.data.type, d.data.isShadow))
+      .attr("fill", (d: any) => {
+        if (d.data.isShadow) return "rgba(88, 28, 135, 0.2)";
+        if (d.data.isOrphan) return "rgba(30, 41, 59, 0.8)"; // 孤立节点背景
+        return "#0f172a";
+      })
+      .attr("stroke", (d: any) => {
+        if (d.data.isOrphan) return "#64748b"; // 孤立节点边框色
+        return getTypeColor(d.data.type, d.data.isShadow);
+      })
       .attr("stroke-width", (d: any) => d.data.isShadow ? 1.5 : 2)
-      .attr("stroke-dasharray", (d: any) => d.data.isShadow ? "5,5" : "none")
+      .attr("stroke-dasharray", (d: any) => {
+        if (d.data.isShadow) return "5,5";
+        if (d.data.isOrphan) return "4,2"; // 孤立节点虚线边框
+        return "none";
+      })
       .attr("class", "node-rect transition-all duration-300");
 
     nodeGroup.append("text")
@@ -368,36 +514,193 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("x", 0)
       .attr("y", -6)
       .attr("text-anchor", "middle")
-      .attr("fill", (d: any) => d.data.isShadow ? "#a78bfa" : "#e2e8f0")
+      .attr("fill", (d: any) => {
+        if (d.data.isShadow) return "#a78bfa";
+        if (d.data.isOrphan) return "#94a3b8";
+        return "#e2e8f0";
+      })
       .attr("font-size", "12px")
       .attr("font-weight", "600")
       .style("pointer-events", "none");
 
     nodeGroup.append("text")
-      .text((d: any) => d.data.isShadow ? "INFERRED" : "ONLINE")
+      .text((d: any) => {
+        if (d.data.isShadow) return "INFERRED";
+        if (d.data.isOrphan) return "STANDALONE";
+        return "ONLINE";
+      })
       .attr("x", 0)
       .attr("y", 13)
       .attr("text-anchor", "middle")
       .attr("font-size", "8px")
       .attr("font-family", "monospace")
-      .attr("fill", (d: any) => d.data.isShadow ? "#c084fc" : "#4ade80")
+      .attr("fill", (d: any) => {
+        if (d.data.isShadow) return "#c084fc";
+        if (d.data.isOrphan) return "#64748b";
+        return "#4ade80";
+      })
       .style("pointer-events", "none");
+
+    // 添加连接点（上边中点和下边中点）
+    const portRadius = 8;
+
+    // 上边连接点
+    nodeGroup.append("circle")
+      .attr("class", "port port-top")
+      .attr("cx", 0)
+      .attr("cy", -rectHeight / 2)
+      .attr("r", portRadius)
+      .attr("fill", "#334155")
+      .attr("stroke", "#64748b")
+      .attr("stroke-width", 2)
+      .attr("cursor", "crosshair")
+      .style("transition", "all 0.15s ease-out")
+      .on("mouseenter", function() {
+        d3.select(this)
+          .attr("fill", "#22d3ee")
+          .attr("stroke", "#22d3ee")
+          .attr("r", portRadius + 3)
+          .attr("filter", "drop-shadow(0 0 4px rgba(34, 211, 238, 0.6))");
+      })
+      .on("mouseleave", function() {
+        d3.select(this)
+          .attr("fill", "#334155")
+          .attr("stroke", "#64748b")
+          .attr("r", portRadius)
+          .attr("filter", "none");
+      })
+      .on("click", (e: any, d: any) => {
+        e.stopPropagation();
+        e.preventDefault();
+        console.log('Top port clicked:', d.data.id);
+        handlePortClickRef.current(d.data.id, 'top', e);
+      });
+
+    // 下边连接点
+    nodeGroup.append("circle")
+      .attr("class", "port port-bottom")
+      .attr("cx", 0)
+      .attr("cy", rectHeight / 2)
+      .attr("r", portRadius)
+      .attr("fill", "#334155")
+      .attr("stroke", "#64748b")
+      .attr("stroke-width", 2)
+      .attr("cursor", "crosshair")
+      .style("transition", "all 0.15s ease-out")
+      .on("mouseenter", function() {
+        d3.select(this)
+          .attr("fill", "#22d3ee")
+          .attr("stroke", "#22d3ee")
+          .attr("r", portRadius + 3)
+          .attr("filter", "drop-shadow(0 0 4px rgba(34, 211, 238, 0.6))");
+      })
+      .on("mouseleave", function() {
+        d3.select(this)
+          .attr("fill", "#334155")
+          .attr("stroke", "#64748b")
+          .attr("r", portRadius)
+          .attr("filter", "none");
+      })
+      .on("click", (e: any, d: any) => {
+        e.stopPropagation();
+        e.preventDefault();
+        console.log('Bottom port clicked:', d.data.id);
+        handlePortClickRef.current(d.data.id, 'bottom', e);
+      });
 
   }, [data]);
 
+  // 获取节点名称
+  const getNodeName = (nodeId: string) => {
+    const node = data.nodes.find(n => n.id === nodeId);
+    return node?.label || nodeId;
+  };
+
+  // 处理背景点击（取消链接模式）
+  const handleBackgroundClick = useCallback((e: React.MouseEvent) => {
+    // 只有点击 SVG 背景时才取消链接
+    if (linkingState && (e.target as HTMLElement).tagName === 'svg') {
+      cancelLinking();
+    }
+  }, [linkingState, cancelLinking]);
+
   return (
-    <div ref={containerRef} className="w-full h-full bg-slate-900 overflow-hidden relative">
+    <div ref={containerRef} className="w-full h-full bg-slate-900 overflow-hidden relative" onClick={handleBackgroundClick}>
+      {/* 图例 */}
       <div className="absolute top-2 left-2 z-10 pointer-events-none p-3 bg-slate-950/40 backdrop-blur rounded-lg border border-slate-800">
         <div className="flex flex-col gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded bg-blue-500"></div> System Node</div>
           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-purple-500 border-dashed"></div> Ghost Node (AI Discovered)</div>
+          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-slate-500" style={{borderStyle: 'dashed'}}></div> Standalone Node</div>
           <div className="mt-2 pt-2 border-t border-slate-800">
              <div className="flex items-center gap-2"><div className="w-3 h-0.5 bg-cyan-600"></div> Static Link</div>
              <div className="flex items-center gap-2"><div className="w-3 h-0.5 border-t border-dashed border-purple-400"></div> Inferred Traffic</div>
           </div>
         </div>
       </div>
+
+      {/* 链接模式指示器 */}
+      {linkingState && (
+        <div className="absolute top-2 right-2 z-20 px-4 py-2 bg-cyan-500/20 border border-cyan-500/50 rounded-lg backdrop-blur">
+          <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold">
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+            <span>链接模式: 从 "{getNodeName(linkingState.sourceNodeId)}" 开始</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); cancelLinking(); }}
+              className="ml-2 text-cyan-300 hover:text-white"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 链接创建成功提示 */}
+      {linkCreatedMessage && (
+        <div className="absolute top-2 right-2 z-20 px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-lg backdrop-blur animate-pulse">
+          <div className="flex items-center gap-2 text-green-400 text-xs font-bold">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{linkCreatedMessage}</span>
+          </div>
+        </div>
+      )}
+
       <svg ref={svgRef} className="w-full h-full" />
+
+      {/* 链接类型选择弹窗 */}
+      {showLinkTypeModal && pendingLink && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={cancelLinking}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl w-80" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold text-lg mb-2">选择链接类型</h3>
+            <p className="text-slate-400 text-sm mb-4">
+              从 <span className="text-cyan-400">{getNodeName(pendingLink.source)}</span> 到 <span className="text-cyan-400">{getNodeName(pendingLink.target)}</span>
+            </p>
+            <div className="space-y-2">
+              {LINK_TYPES.map(linkType => (
+                <button
+                  key={linkType.value}
+                  onClick={() => confirmCreateLink(linkType.value)}
+                  className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 hover:border-slate-600 transition-all text-left"
+                >
+                  <div className="w-8 h-1 rounded" style={{ backgroundColor: linkType.color }}></div>
+                  <div>
+                    <div className="text-white font-medium text-sm">{linkType.label}</div>
+                    <div className="text-slate-500 text-xs">{linkType.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={cancelLinking}
+              className="w-full mt-4 py-2 text-slate-400 hover:text-white text-sm transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

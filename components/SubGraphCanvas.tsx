@@ -15,22 +15,24 @@ interface SubGraphCanvasProps {
   onAddNode: (nodeId: string) => void;
   onRemoveNode: (nodeId: string) => void;
   onViewResource: (node: TopologyNode) => void;
+  onCreateLink?: (link: { source: string; target: string; type: string }) => void;
 }
 
 // Static empty set to prevent unnecessary effect triggers in TopologyGraph
 const EMPTY_SET = new Set<string>();
 
-const SubGraphCanvas: React.FC<SubGraphCanvasProps> = ({ 
-  topologyGroup, 
-  globalTopology, 
+const SubGraphCanvas: React.FC<SubGraphCanvasProps> = ({
+  topologyGroup,
+  globalTopology,
   activeScopeId,
   isSimulating,
-  onBack, 
+  onBack,
   onDiagnose,
   onNavigateToDiagnosis,
-  onAddNode, 
+  onAddNode,
   onRemoveNode,
-  onViewResource
+  onViewResource,
+  onCreateLink
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addNodeSearchTerm, setAddNodeSearchTerm] = useState('');
@@ -137,14 +139,15 @@ const SubGraphCanvas: React.FC<SubGraphCanvasProps> = ({
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Topology Canvas */}
         <div className="flex-1 relative bg-slate-950">
-          <TopologyGraph 
+          <TopologyGraph
             data={localTopology}
-            activeNodeIds={EMPTY_SET} 
-            onNodeClick={() => {}} 
+            activeNodeIds={EMPTY_SET}
+            onNodeClick={() => {}}
             onNodeDoubleClick={(id) => {
                 const node = globalTopology.nodes.find(n => n.id === id);
                 if (node) onViewResource(node);
             }}
+            onCreateLink={onCreateLink}
           />
           {localTopology.nodes.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">

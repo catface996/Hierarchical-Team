@@ -511,6 +511,18 @@ const App: React.FC = () => {
     setDiscoveredDelta(prev => ({ ...prev, nodes: prev.nodes.filter(n => n.id !== node.id) }));
   };
 
+  // 创建新链接
+  const handleCreateLink = useCallback((link: { source: string; target: string; type: string }) => {
+    setTopology(prev => ({
+      ...prev,
+      links: [...prev.links, {
+        source: link.source,
+        target: link.target,
+        type: link.type as any
+      }]
+    }));
+  }, []);
+
   const renderMainContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -519,7 +531,7 @@ const App: React.FC = () => {
         return <TopologiesManagement topologyGroups={topologyGroups} activeScopeId={diagnosisScope?.id} isSimulating={isSimulating} onAdd={(tg) => setTopologyGroups(p => [...p, tg])} onUpdate={(u) => setTopologyGroups(p => p.map(g => g.id === u.id ? u : g))} onDelete={(id) => setTopologyGroups(p => p.filter(g => g.id !== id))} onEnter={(id) => { setSelectedTopologyId(id); setCurrentView('topology-detail'); }} onNavigateToDiagnosis={() => setCurrentView('diagnosis')} />;
       case 'topology-detail':
         const activeTg = topologyGroups.find(tg => tg.id === selectedTopologyId);
-        return activeTg ? <SubGraphCanvas topologyGroup={activeTg} globalTopology={topology} activeScopeId={diagnosisScope?.id} isSimulating={isSimulating} onBack={() => setCurrentView('topologies')} onDiagnose={() => { setDiagnosisScope(activeTg); setCurrentView('diagnosis'); }} onNavigateToDiagnosis={() => setCurrentView('diagnosis')} onAddNode={(nid) => setTopologyGroups(p => p.map(g => g.id === selectedTopologyId ? {...g, nodeIds: [...g.nodeIds, nid]} : g))} onRemoveNode={(nid) => setTopologyGroups(p => p.map(g => g.id === selectedTopologyId ? {...g, nodeIds: g.nodeIds.filter(i => i !== nid)} : g))} onViewResource={(n) => { setSelectedResourceId(n.id); setCurrentView('resource-detail'); }} /> : null;
+        return activeTg ? <SubGraphCanvas topologyGroup={activeTg} globalTopology={topology} activeScopeId={diagnosisScope?.id} isSimulating={isSimulating} onBack={() => setCurrentView('topologies')} onDiagnose={() => { setDiagnosisScope(activeTg); setCurrentView('diagnosis'); }} onNavigateToDiagnosis={() => setCurrentView('diagnosis')} onAddNode={(nid) => setTopologyGroups(p => p.map(g => g.id === selectedTopologyId ? {...g, nodeIds: [...g.nodeIds, nid]} : g))} onRemoveNode={(nid) => setTopologyGroups(p => p.map(g => g.id === selectedTopologyId ? {...g, nodeIds: g.nodeIds.filter(i => i !== nid)} : g))} onViewResource={(n) => { setSelectedResourceId(n.id); setCurrentView('resource-detail'); }} onCreateLink={handleCreateLink} /> : null;
       case 'resources':
         return <ResourceManagement nodes={topology.nodes} onAdd={(n) => setTopology(prev => ({...prev, nodes: [...prev.nodes, n]}))} onUpdate={(n) => setTopology(prev => ({...prev, nodes: prev.nodes.map(x => x.id === n.id ? n : x)}))} onDelete={(id) => setTopology(prev => ({...prev, nodes: prev.nodes.filter(x => x.id !== id)}))} onViewDetail={(n) => { setSelectedResourceId(n.id); setCurrentView('resource-detail'); }} />;
       case 'resource-detail':
@@ -599,7 +611,7 @@ const App: React.FC = () => {
               />
               <aside style={{ width: rightSidebarWidth }} className="bg-slate-900/20 relative shrink-0">
                   <div className="absolute top-0 left-0 w-full h-10 border-b border-slate-800 bg-slate-900/40 z-10 flex items-center px-4 font-bold text-[10px] text-slate-400 uppercase tracking-widest">Topology Monitor</div>
-                  <TopologyGraph data={dashboardTopology} activeNodeIds={activeNodeIds} onNodeClick={() => {}} />
+                  <TopologyGraph data={dashboardTopology} activeNodeIds={activeNodeIds} onNodeClick={() => {}} onCreateLink={handleCreateLink} />
               </aside>
           </div>
         );
