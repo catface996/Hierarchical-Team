@@ -351,24 +351,180 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       });
     };
 
+    // Calculate dependency depth within each layer for intra-layer call links
+    const calculateIntraLayerDepth = (nodesInLayer: any[], allLinks: typeof data.links) => {
+      if (nodesInLayer.length === 0) return new Map<string, number>();
+
+      const nodeIds = new Set(nodesInLayer.map((n: any) => n.data.id));
+
+      // Find call links within this layer
+      const intraLayerLinks = allLinks
+        .filter(l => {
+          const sourceId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const targetId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return (l.type === 'call' || !l.type) && nodeIds.has(sourceId) && nodeIds.has(targetId);
+        })
+        .map(l => ({
+          source: typeof l.source === 'object' ? (l.source as any).id : l.source,
+          target: typeof l.target === 'object' ? (l.target as any).id : l.target,
+        }));
+
+      // If no intra-layer links, all nodes are at depth 0
+      if (intraLayerLinks.length === 0) {
+        const depthMap = new Map<string, number>();
+        nodesInLayer.forEach((n: any) => depthMap.set(n.data.id, 0));
+        return depthMap;
+      }
+
+      // Build adjacency list and calculate in-degree
+      const inDegree = new Map<string, number>();
+      const children = new Map<string, string[]>();
+      nodeIds.forEach(id => {
+        inDegree.set(id, 0);
+        children.set(id, []);
+      });
+
+      intraLayerLinks.forEach(link => {
+        inDegree.set(link.target, (inDegree.get(link.target) || 0) + 1);
+        children.get(link.source)?.push(link.target);
+      });
+
+      // Topological sort with BFS to calculate depth
+      const depthMap = new Map<string, number>();
+      const queue: string[] = [];
+
+      // Start with nodes that have no incoming edges within the layer
+      nodeIds.forEach(id => {
+        if ((inDegree.get(id) || 0) === 0) {
+          queue.push(id);
+          depthMap.set(id, 0);
+        }
+      });
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const currentDepth = depthMap.get(current) || 0;
+
+        children.get(current)?.forEach(child => {
+          const newDepth = currentDepth + 1;
+          const existingDepth = depthMap.get(child);
+          if (existingDepth === undefined || newDepth > existingDepth) {
+            depthMap.set(child, newDepth);
+          }
+
+          const newInDegree = (inDegree.get(child) || 1) - 1;
+          inDegree.set(child, newInDegree);
+          if (newInDegree === 0) {
+            queue.push(child);
+          }
+        });
+      }
+
+      // Handle any remaining nodes (cycles) - assign them max depth + 1
+      const maxDepth = Math.max(...Array.from(depthMap.values()), 0);
+      nodeIds.forEach(id => {
+        if (!depthMap.has(id)) {
+          depthMap.set(id, maxDepth + 1);
+        }
+      });
+
+      return depthMap;
+    };
+
+    // Position nodes within their layer bands based on dependency depth
+    const rowHeight = 90; // Height between row centers within a layer (increased for better spacing)
+    const nodeHeight = 50; // Height of each node rect
+    const layerEdgePadding = 45; // Padding from layer edge to node edge (ensures visual spacing)
+    const minRowGap = 40; // Minimum vertical gap between nodes in different rows
+
+    activeLayers.forEach(layer => {
+      const nodesInLayer = layerNodeMap.get(layer) || [];
+      if (nodesInLayer.length === 0) return;
+
+      // Calculate depth for each node within this layer
+      const depthMap = calculateIntraLayerDepth(nodesInLayer, data.links);
+
+      // Group nodes by depth
+      const nodesByDepth = new Map<number, any[]>();
+      nodesInLayer.forEach((node: any) => {
+        const depth = depthMap.get(node.data.id) || 0;
+        if (!nodesByDepth.has(depth)) {
+          nodesByDepth.set(depth, []);
+        }
+        nodesByDepth.get(depth)!.push(node);
+      });
+
+      // Get sorted depth levels
+      const depthLevels = Array.from(nodesByDepth.keys()).sort((a, b) => a - b);
+      const numRows = depthLevels.length;
+
+      // Calculate minimum height needed:
+      // - Top padding (from layer edge to first node center)
+      // - Space for all rows (numRows - 1) * rowHeight
+      // - Bottom padding (from last node center to layer edge)
+      // - Account for half node height at top and bottom
+      const minHeightNeeded = numRows > 1
+        ? layerEdgePadding * 2 + (numRows - 1) * rowHeight + nodeHeight
+        : layerEdgePadding * 2 + nodeHeight;
+
+      const currentHeight = layerHeights.get(layer) || baseLayerHeight;
+      if (minHeightNeeded > currentHeight) {
+        layerHeights.set(layer, minHeightNeeded);
+      }
+    });
+
+    // Recalculate layer positions after height adjustments
     recalculateLayerPositions();
 
-    // Position nodes within their layer bands
+    // Now position nodes within layers
     activeLayers.forEach(layer => {
       const nodesInLayer = layerNodeMap.get(layer) || [];
       const layerPos = layerYPositions.get(layer);
       if (!layerPos || nodesInLayer.length === 0) return;
 
-      // Sort nodes by their original x position to maintain relative order
-      nodesInLayer.sort((a: any, b: any) => a.x - b.x);
+      // Calculate depth for each node within this layer
+      const depthMap = calculateIntraLayerDepth(nodesInLayer, data.links);
 
-      const nodeSpacing = 180;
-      const totalWidth = (nodesInLayer.length - 1) * nodeSpacing;
-      const startX = -totalWidth / 2;
+      // Group nodes by depth
+      const nodesByDepth = new Map<number, any[]>();
+      nodesInLayer.forEach((node: any) => {
+        const depth = depthMap.get(node.data.id) || 0;
+        if (!nodesByDepth.has(depth)) {
+          nodesByDepth.set(depth, []);
+        }
+        nodesByDepth.get(depth)!.push(node);
+      });
 
-      nodesInLayer.forEach((node: any, idx: number) => {
-        node.x = startX + idx * nodeSpacing;
-        node.y = layerPos.center;
+      // Get sorted depth levels
+      const depthLevels = Array.from(nodesByDepth.keys()).sort((a, b) => a - b);
+      const numRows = depthLevels.length;
+
+      // Calculate vertical spacing within the layer
+      // Use consistent padding from layer edges
+      const layerH = layerHeights.get(layer) || baseLayerHeight;
+      const topPadding = layerEdgePadding + nodeHeight / 2; // From layer top to first node center
+      const bottomPadding = layerEdgePadding + nodeHeight / 2; // From last node center to layer bottom
+      const availableHeight = layerH - topPadding - bottomPadding;
+      const rowSpacing = numRows > 1 ? availableHeight / (numRows - 1) : 0;
+      const startY = numRows > 1 ? layerPos.top + topPadding : layerPos.center;
+
+      // Position nodes at each depth level
+      depthLevels.forEach((depth, rowIndex) => {
+        const nodesAtDepth = nodesByDepth.get(depth) || [];
+
+        // Sort nodes by original x position
+        nodesAtDepth.sort((a: any, b: any) => a.x - b.x);
+
+        const nodeSpacing = 180;
+        const totalWidth = (nodesAtDepth.length - 1) * nodeSpacing;
+        const startX = -totalWidth / 2;
+
+        const rowY = numRows > 1 ? startY + rowIndex * rowSpacing : startY;
+
+        nodesAtDepth.forEach((node: any, idx: number) => {
+          node.x = startX + idx * nodeSpacing;
+          node.y = rowY;
+        });
       });
     });
 

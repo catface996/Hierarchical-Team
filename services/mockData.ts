@@ -93,7 +93,10 @@ export const INITIAL_TOPOLOGY: Topology = {
     { source: 'web-client', target: 'gateway-01', type: 'call' },
     { source: 'payment-svc', target: 'event-stream', type: 'call' },
     { source: 'event-stream', target: 'analytics-dw', type: 'call' },
-    { source: 'payment-svc', target: 'ml-model-v1', type: 'call' },
+    // Intra-layer call links within Business Application layer (for depth-based layout)
+    { source: 'auth-svc', target: 'payment-svc', type: 'call' },  // auth-svc calls payment-svc
+    { source: 'payment-svc', target: 'ml-model-v1', type: 'call' },  // payment-svc calls ml-model-v1
+    { source: 'ml-model-v1', target: 'legacy-monolith', type: 'call' },  // ml-model-v1 calls legacy-monolith
     { source: 'k8s-cluster', target: 'gateway-01', type: 'deployment' },
     { source: 'k8s-cluster', target: 'auth-svc', type: 'deployment' },
     { source: 'k8s-cluster', target: 'payment-svc', type: 'deployment' },
