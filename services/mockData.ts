@@ -276,7 +276,15 @@ export const INITIAL_REPORTS: Report[] = [
 ];
 
 export const INITIAL_SESSIONS: DiagnosisSession[] = [
-  { id: 'sess-01', query: 'Inspect payment latency spikes during BFCM', timestamp: Date.now() - 3600000 * 1, status: 'Completed', findings: { warnings: 2, critical: 0 }, scope: 'Payment Processing Flow' }
+  { id: 'sess-01', query: 'Inspect payment latency spikes during BFCM', timestamp: Date.now() - 3600000 * 1, status: 'Completed', findings: { warnings: 2, critical: 0 }, scope: 'Payment Processing Flow' },
+  { id: 'sess-02', query: 'Database connection pool exhaustion analysis', timestamp: Date.now() - 3600000 * 3, status: 'Completed', findings: { warnings: 1, critical: 1 }, scope: 'Core Database Cluster' },
+  { id: 'sess-03', query: 'API Gateway timeout investigation for /checkout endpoint', timestamp: Date.now() - 3600000 * 6, status: 'Completed', findings: { warnings: 3, critical: 0 }, scope: 'API Gateway' },
+  { id: 'sess-04', query: 'Memory leak detection in order-service pods', timestamp: Date.now() - 3600000 * 12, status: 'Completed', findings: { warnings: 0, critical: 2 }, scope: 'Order Processing' },
+  { id: 'sess-05', query: 'Redis cache hit ratio optimization', timestamp: Date.now() - 3600000 * 24, status: 'Completed', findings: { warnings: 4, critical: 0 }, scope: 'Cache Layer' },
+  { id: 'sess-06', query: 'Kafka consumer lag spike during peak hours', timestamp: Date.now() - 3600000 * 36, status: 'Completed', findings: { warnings: 2, critical: 1 }, scope: 'Message Queue' },
+  { id: 'sess-07', query: 'Authentication service failure root cause analysis', timestamp: Date.now() - 3600000 * 48, status: 'Failed', findings: { warnings: 1, critical: 3 }, scope: 'Auth Service' },
+  { id: 'sess-08', query: 'Load balancer health check failures', timestamp: Date.now() - 3600000 * 72, status: 'Completed', findings: { warnings: 0, critical: 0 }, scope: 'Infrastructure' },
+  { id: 'sess-09', query: 'Real-time inventory sync latency investigation', timestamp: Date.now() - 100000, status: 'Running', findings: { warnings: 1, critical: 0 }, scope: 'Inventory System' }
 ];
 
 export const generateMockHistory = (agentId: string): AgentExecutionRecord[] => {

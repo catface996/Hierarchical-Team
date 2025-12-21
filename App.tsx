@@ -28,12 +28,16 @@ import {
   Report,
   ReportTemplate
 } from './types';
-import { 
+import {
   analyzeInfrastructureDelta,
   generateGlobalPlan,
   generateTeamDelegation,
   streamWorkerTask,
-  generateStructuredReport
+  generateStructuredReport,
+  streamGlobalThinking,
+  streamTeamLeadThinking,
+  generateTeamReport,
+  streamGlobalSummary
 } from './services/geminiService';
 import TopologyGraph from './components/TopologyGraph';
 import AgentHierarchy from './components/AgentHierarchy';
@@ -48,16 +52,58 @@ import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
-import AuthPage from './components/AuthPage';
+import AuthPage, { UserInfo } from './components/AuthPage';
 import { SettingsModal, AppSettings } from './components/SettingsModal';
 import { Activity, Database, Network, FileText, LogOut, Settings, Play, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
+
+// 本地存储的键名
+const AUTH_STORAGE_KEY = 'entropyops_auth';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>({ language: 'en', theme: 'dark' });
+
+  // 初始化时检查本地缓存的登录状态
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (cached) {
+        const userData: UserInfo = JSON.parse(cached);
+        // 可选：检查登录是否过期（例如7天）
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        if (Date.now() - userData.loginTime < sevenDays) {
+          setCurrentUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          // 登录已过期，清除缓存
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore auth state:', e);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, []);
+
+  // 登录处理
+  const handleLogin = useCallback((user: UserInfo) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    // 保存到本地缓存
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  }, []);
+
+  // 退出登录
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    // 清除本地缓存
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }, []);
 
   // 核心视图切换
   const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'discovery'>('dashboard');
@@ -86,6 +132,40 @@ const App: React.FC = () => {
   
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(340);
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
+  // 拖拽调整宽度的处理函数
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isResizingLeft) {
+      const newWidth = Math.max(200, Math.min(500, e.clientX));
+      setLeftSidebarWidth(newWidth);
+    }
+    if (isResizingRight) {
+      const newWidth = Math.max(250, Math.min(600, window.innerWidth - e.clientX));
+      setRightSidebarWidth(newWidth);
+    }
+  }, [isResizingLeft, isResizingRight]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizingLeft(false);
+    setIsResizingRight(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingLeft, isResizingRight, handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
     setTeams(prevTeams => topology.nodes.map(node => {
@@ -98,6 +178,21 @@ const App: React.FC = () => {
       if (!diagnosisScope) return teams;
       return teams.filter(t => diagnosisScope.nodeIds.includes(t.resourceId));
   }, [teams, diagnosisScope]);
+
+  // 计算当前正在工作的 agent 对应的资源节点 ID（用于拓扑图高亮）
+  const activeNodeIds = useMemo(() => {
+    const nodeIds = new Set<string>();
+    teams.forEach(team => {
+      const isTeamActive =
+        team.supervisor.status === AgentStatus.THINKING ||
+        team.supervisor.status === AgentStatus.WORKING ||
+        team.members.some(m => m.status === AgentStatus.THINKING || m.status === AgentStatus.WORKING);
+      if (isTeamActive) {
+        nodeIds.add(team.resourceId);
+      }
+    });
+    return nodeIds;
+  }, [teams]);
 
   const dashboardTopology = useMemo(() => {
     const base = diagnosisScope ? {
@@ -118,52 +213,267 @@ const App: React.FC = () => {
   // --- 执行诊断逻辑：分级协作流 ---
   const handleExecuteDiagnosis = async () => {
     if (isSimulating || !userQuery.trim()) return;
-    
+
     setIsSimulating(true);
-    setLogs([{ id: `sys-${Date.now()}`, timestamp: Date.now(), fromAgentId: 'sys', fromAgentName: 'SYSTEM', content: `DIRECTIVE: "${userQuery}" [Scope: ${diagnosisScope?.name || 'GLOBAL'}]`, type: 'instruction' }]);
-    
-    await delay(1000);
-    
-    // 1. Global Supervisor 决策规划
-    setGlobalAgent(p => ({...p, status: AgentStatus.THINKING}));
-    setLogs(prev => [...prev, { id: `gs-1-${Date.now()}`, timestamp: Date.now(), fromAgentId: globalAgent.id, fromAgentName: globalAgent.name, content: `Parsing request against available ${activeTeams.length} functional teams...`, type: 'thought' }]);
-    
+    const teamResults: { teamName: string; warnings: number; critical: number }[] = [];
+
+    // 系统启动消息
+    setLogs([{
+      id: `sys-${Date.now()}`,
+      timestamp: Date.now(),
+      fromAgentId: 'sys',
+      fromAgentName: 'SYSTEM',
+      content: `╔════════════════════════════════════════════════════════╗\n║  MISSION INITIATED                                     ║\n╠════════════════════════════════════════════════════════╣\n║  Directive: "${userQuery.substring(0, 40)}${userQuery.length > 40 ? '...' : ''}"  \n║  Scope: ${diagnosisScope?.name || 'GLOBAL INFRASTRUCTURE'}  \n║  Timestamp: ${new Date().toISOString()}  \n╚════════════════════════════════════════════════════════╝`,
+      type: 'system'
+    }]);
+
+    await delay(800);
+
+    // 1. Global Orchestrator 开始思考
+    setGlobalAgent(p => ({ ...p, status: AgentStatus.THINKING }));
+
+    // 流式输出 Global Orchestrator 的思考过程
+    const globalThinkLogId = `gs-think-${Date.now()}`;
+    setLogs(prev => [...prev, {
+      id: globalThinkLogId,
+      timestamp: Date.now(),
+      fromAgentId: globalAgent.id,
+      fromAgentName: globalAgent.name,
+      content: '',
+      type: 'thought',
+      isStreaming: true
+    }]);
+
+    let globalThinkContent = '';
+    for await (const chunk of streamGlobalThinking(userQuery, activeTeams)) {
+      globalThinkContent += chunk;
+      setLogs(prev => prev.map(l => l.id === globalThinkLogId ? { ...l, content: globalThinkContent } : l));
+    }
+    setLogs(prev => prev.map(l => l.id === globalThinkLogId ? { ...l, isStreaming: false } : l));
+
+    // 生成执行计划
     const plan = await generateGlobalPlan(userQuery, topology, activeTeams);
-    setGlobalAgent(p => ({...p, status: AgentStatus.IDLE}));
-    
+    setGlobalAgent(p => ({ ...p, status: AgentStatus.WORKING }));
+
+    // 输出任务分配
+    const planSummary = plan.map(p => {
+      const team = teams.find(t => t.id === p.teamId);
+      return `  → ${team?.name || 'Unknown'} [${p.priority}]`;
+    }).join('\n');
+
+    setLogs(prev => [...prev, {
+      id: `gs-plan-${Date.now()}`,
+      timestamp: Date.now(),
+      fromAgentId: globalAgent.id,
+      fromAgentName: globalAgent.name,
+      content: `Task Distribution Matrix:\n${planSummary}\n\nInitiating parallel team coordination...`,
+      type: 'instruction'
+    }]);
+
+    await delay(500);
+
     // 2. 逐级分发到各 Team Supervisor
     for (const step of plan) {
-       const team = teams.find(t => t.id === step.teamId);
-       if (!team) continue;
-       
-       setLogs(prev => [...prev, { id: `to-team-${team.id}`, timestamp: Date.now(), fromAgentId: globalAgent.id, fromAgentName: globalAgent.name, toAgentId: team.supervisor.id, content: step.instruction, type: 'instruction' }]);
-       
-       // 3. Team Supervisor 下发给 Worker
-       await delay(500);
-       const delegations = await generateTeamDelegation(team, step.instruction);
-       for (const del of delegations) {
-           const worker = team.members.find(m => m.id === del.agentId);
-           if (!worker) continue;
-           
-           setLogs(prev => [...prev, { id: `to-worker-${worker.id}`, timestamp: Date.now(), fromAgentId: team.supervisor.id, fromAgentName: team.supervisor.name, toAgentId: worker.id, content: del.task, type: 'instruction' }]);
-           
-           // 4. Worker 任务执行
-           const stream = streamWorkerTask(worker, del.task, step.instruction);
-           let fullContent = "";
-           const logId = `worker-run-${worker.id}-${Date.now()}`;
-           setLogs(prev => [...prev, { id: logId, timestamp: Date.now(), fromAgentId: worker.id, fromAgentName: worker.name, content: "", type: 'thought', isStreaming: true }]);
-           
-           for await (const chunk of stream) {
-               fullContent += chunk;
-               setLogs(prev => prev.map(l => l.id === logId ? {...l, content: fullContent} : l));
-           }
-           setLogs(prev => prev.map(l => l.id === logId ? {...l, isStreaming: false} : l));
-       }
-       
-       setLogs(prev => [...prev, { id: `rep-${team.id}`, timestamp: Date.now(), fromAgentId: team.supervisor.id, fromAgentName: team.supervisor.name, toAgentId: globalAgent.id, content: `Team objectives met for ${team.name}. Initial scan confirms operational stability.`, type: 'report' }]);
+      const team = teams.find(t => t.id === step.teamId);
+      if (!team) continue;
+
+      // 更新 Team Supervisor 状态
+      setTeams(prev => prev.map(t =>
+        t.id === team.id
+          ? { ...t, supervisor: { ...t.supervisor, status: AgentStatus.THINKING } }
+          : t
+      ));
+
+      // Global -> Team Lead 指令
+      setLogs(prev => [...prev, {
+        id: `to-team-${team.id}-${Date.now()}`,
+        timestamp: Date.now(),
+        fromAgentId: globalAgent.id,
+        fromAgentName: globalAgent.name,
+        toAgentId: team.supervisor.id,
+        content: step.instruction,
+        type: 'instruction'
+      }]);
+
+      await delay(400);
+
+      // Team Lead 思考过程
+      const leadThinkLogId = `lead-think-${team.id}-${Date.now()}`;
+      setLogs(prev => [...prev, {
+        id: leadThinkLogId,
+        timestamp: Date.now(),
+        fromAgentId: team.supervisor.id,
+        fromAgentName: team.supervisor.name,
+        content: '',
+        type: 'thought',
+        isStreaming: true
+      }]);
+
+      let leadThinkContent = '';
+      for await (const chunk of streamTeamLeadThinking(team, step.instruction)) {
+        leadThinkContent += chunk;
+        setLogs(prev => prev.map(l => l.id === leadThinkLogId ? { ...l, content: leadThinkContent } : l));
+      }
+      setLogs(prev => prev.map(l => l.id === leadThinkLogId ? { ...l, isStreaming: false } : l));
+
+      // Team Lead 状态变为工作中
+      setTeams(prev => prev.map(t =>
+        t.id === team.id
+          ? { ...t, supervisor: { ...t.supervisor, status: AgentStatus.WORKING } }
+          : t
+      ));
+
+      // 3. Team Supervisor 下发给 Worker
+      const delegations = await generateTeamDelegation(team, step.instruction);
+      const workerResults: { warnings: number; critical: number }[] = [];
+
+      for (const del of delegations) {
+        const worker = team.members.find(m => m.id === del.agentId);
+        if (!worker) continue;
+
+        // 更新 Worker 状态
+        setTeams(prev => prev.map(t =>
+          t.id === team.id
+            ? {
+                ...t,
+                members: t.members.map(m =>
+                  m.id === worker.id ? { ...m, status: AgentStatus.WORKING, currentTask: del.task.substring(0, 50) } : m
+                )
+              }
+            : t
+        ));
+
+        // Team Lead -> Worker 指令
+        setLogs(prev => [...prev, {
+          id: `to-worker-${worker.id}-${Date.now()}`,
+          timestamp: Date.now(),
+          fromAgentId: team.supervisor.id,
+          fromAgentName: team.supervisor.name,
+          toAgentId: worker.id,
+          content: del.task,
+          type: 'instruction'
+        }]);
+
+        await delay(300);
+
+        // 4. Worker 任务执行（流式输出）
+        const stream = streamWorkerTask(worker, del.task, team.name);
+        let fullContent = '';
+        const logId = `worker-run-${worker.id}-${Date.now()}`;
+        setLogs(prev => [...prev, {
+          id: logId,
+          timestamp: Date.now(),
+          fromAgentId: worker.id,
+          fromAgentName: worker.name,
+          content: '',
+          type: 'thought',
+          isStreaming: true
+        }]);
+
+        for await (const chunk of stream) {
+          fullContent += chunk;
+          setLogs(prev => prev.map(l => l.id === logId ? { ...l, content: fullContent } : l));
+        }
+        setLogs(prev => prev.map(l => l.id === logId ? { ...l, isStreaming: false } : l));
+
+        // 解析 Worker 结果
+        const warningMatch = fullContent.match(/Warnings:\s*(\d+)/);
+        const criticalMatch = fullContent.match(/Critical:\s*(\d+)/);
+        const warnings = warningMatch ? parseInt(warningMatch[1]) : 0;
+        const critical = criticalMatch ? parseInt(criticalMatch[1]) : 0;
+        workerResults.push({ warnings, critical });
+
+        // 更新 Worker 状态和发现
+        setTeams(prev => prev.map(t =>
+          t.id === team.id
+            ? {
+                ...t,
+                members: t.members.map(m =>
+                  m.id === worker.id
+                    ? { ...m, status: AgentStatus.COMPLETED, findings: { warnings, critical } }
+                    : m
+                )
+              }
+            : t
+        ));
+
+        await delay(200);
+      }
+
+      // Team Lead 汇总报告
+      const totalWarnings = workerResults.reduce((sum, r) => sum + r.warnings, 0);
+      const totalCritical = workerResults.reduce((sum, r) => sum + r.critical, 0);
+      teamResults.push({ teamName: team.name, warnings: totalWarnings, critical: totalCritical });
+
+      // 更新 Team Supervisor 状态和发现
+      setTeams(prev => prev.map(t =>
+        t.id === team.id
+          ? {
+              ...t,
+              supervisor: {
+                ...t.supervisor,
+                status: AgentStatus.COMPLETED,
+                findings: { warnings: totalWarnings, critical: totalCritical }
+              }
+            }
+          : t
+      ));
+
+      // Team Lead -> Global Orchestrator 报告
+      const teamReport = generateTeamReport(team.name, workerResults);
+      setLogs(prev => [...prev, {
+        id: `rep-${team.id}-${Date.now()}`,
+        timestamp: Date.now(),
+        fromAgentId: team.supervisor.id,
+        fromAgentName: team.supervisor.name,
+        toAgentId: globalAgent.id,
+        content: teamReport,
+        type: 'report'
+      }]);
+
+      await delay(300);
     }
-    
-    setLogs(prev => [...prev, { id: `sys-end-${Date.now()}`, timestamp: Date.now(), fromAgentId: 'sys', fromAgentName: 'SYSTEM', content: `Mission sequence complete. All reports aggregated.`, type: 'system' }]);
+
+    // 5. Global Orchestrator 最终汇总
+    setGlobalAgent(p => ({ ...p, status: AgentStatus.THINKING }));
+
+    const summaryLogId = `gs-summary-${Date.now()}`;
+    setLogs(prev => [...prev, {
+      id: summaryLogId,
+      timestamp: Date.now(),
+      fromAgentId: globalAgent.id,
+      fromAgentName: globalAgent.name,
+      content: '',
+      type: 'report',
+      isStreaming: true
+    }]);
+
+    let summaryContent = '';
+    for await (const chunk of streamGlobalSummary(teamResults)) {
+      summaryContent += chunk;
+      setLogs(prev => prev.map(l => l.id === summaryLogId ? { ...l, content: summaryContent } : l));
+    }
+    setLogs(prev => prev.map(l => l.id === summaryLogId ? { ...l, isStreaming: false } : l));
+
+    // 更新 Global Orchestrator 状态
+    const globalWarnings = teamResults.reduce((sum, r) => sum + r.warnings, 0);
+    const globalCritical = teamResults.reduce((sum, r) => sum + r.critical, 0);
+    setGlobalAgent(p => ({
+      ...p,
+      status: AgentStatus.COMPLETED,
+      findings: { warnings: globalWarnings, critical: globalCritical }
+    }));
+
+    // 系统结束消息
+    setLogs(prev => [...prev, {
+      id: `sys-end-${Date.now()}`,
+      timestamp: Date.now(),
+      fromAgentId: 'sys',
+      fromAgentName: 'SYSTEM',
+      content: `Mission sequence complete. Diagnostics archived. Ready for next directive.`,
+      type: 'system'
+    }]);
+
     setIsSimulating(false);
   };
 
@@ -240,13 +550,18 @@ const App: React.FC = () => {
       default:
         return (
           <div className="flex-1 flex h-full overflow-hidden">
-              <aside style={{ width: leftSidebarWidth }} className="border-r border-slate-800 bg-slate-900/20 p-2 overflow-y-auto custom-scrollbar text-xs">
+              <aside style={{ width: leftSidebarWidth }} className="bg-slate-900/20 p-2 overflow-y-auto custom-scrollbar text-xs shrink-0">
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 py-2 flex justify-between items-center">
                       <span>Hierarchy Stack</span>
                       {diagnosisScope && <button onClick={() => setDiagnosisScope(null)} className="text-cyan-400 hover:text-white transition-colors">Global View</button>}
                   </div>
                   <AgentHierarchy globalAgent={globalAgent} teams={activeTeams} activeTeamIds={new Set()} onAgentClick={() => {}} />
               </aside>
+              {/* 左侧拖拽分隔条 */}
+              <div
+                className="w-1 bg-slate-800 hover:bg-cyan-500 cursor-col-resize transition-colors shrink-0"
+                onMouseDown={() => setIsResizingLeft(true)}
+              />
               <section className="flex-1 flex flex-col bg-slate-950 min-w-0">
                   <div className="h-10 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 bg-slate-900/40">
                       <div className="flex items-center gap-2">
@@ -261,10 +576,10 @@ const App: React.FC = () => {
                           <Sparkles size={16} className="text-cyan-500" />
                           <input className="flex-1 h-12 bg-transparent text-sm text-slate-200 focus:outline-none" value={userQuery} onChange={e => setUserQuery(e.target.value)} placeholder="Submit directive for hierarchical execution..." />
                       </div>
-                      
+
                       <div className="flex gap-2">
                           {logs.length > 0 && !isSimulating && diagnosisScope && (
-                             <button 
+                             <button
                                 onClick={() => setIsGeneratingReport(true)}
                                 className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95"
                              >
@@ -277,9 +592,14 @@ const App: React.FC = () => {
                       </div>
                   </div>
               </section>
-              <aside style={{ width: rightSidebarWidth }} className="border-l border-slate-800 bg-slate-900/20 relative">
+              {/* 右侧拖拽分隔条 */}
+              <div
+                className="w-1 bg-slate-800 hover:bg-cyan-500 cursor-col-resize transition-colors shrink-0"
+                onMouseDown={() => setIsResizingRight(true)}
+              />
+              <aside style={{ width: rightSidebarWidth }} className="bg-slate-900/20 relative shrink-0">
                   <div className="absolute top-0 left-0 w-full h-10 border-b border-slate-800 bg-slate-900/40 z-10 flex items-center px-4 font-bold text-[10px] text-slate-400 uppercase tracking-widest">Topology Monitor</div>
-                  <TopologyGraph data={dashboardTopology} activeNodeIds={new Set()} onNodeClick={() => {}} />
+                  <TopologyGraph data={dashboardTopology} activeNodeIds={activeNodeIds} onNodeClick={() => {}} />
               </aside>
           </div>
         );
@@ -287,7 +607,7 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-      return <AuthPage onLogin={() => setIsAuthenticated(true)} />;
+      return <AuthPage onLogin={handleLogin} />;
   }
 
   return (
@@ -317,9 +637,17 @@ const App: React.FC = () => {
                 ))}
             </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+            {currentUser && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded-full">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs text-slate-300 font-medium">{currentUser.name}</span>
+              </div>
+            )}
             <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-slate-400 hover:text-white transition-colors"><Settings size={18} /></button>
-            <button onClick={() => setIsAuthenticated(false)} className="p-2 text-slate-400 hover:text-red-400 transition-colors"><LogOut size={18} /></button>
+            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 transition-colors" title="退出登录"><LogOut size={18} /></button>
         </div>
       </header>
       <main className="flex-1 overflow-hidden relative">{renderMainContent()}</main>
@@ -373,7 +701,7 @@ const ReportGenerationModal: React.FC<{
                             <Wand2 size={24} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-white">AI Report Synthesis</h3>
+                            <h3 className="font-bold text-white">AI Report Generator</h3>
                             <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Context: {topology.name}</div>
                         </div>
                     </div>
@@ -406,7 +734,7 @@ const ReportGenerationModal: React.FC<{
                                 onClick={handleGeneratePreview}
                                 className="mt-8 w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-cyan-900/20 flex items-center justify-center gap-2"
                             >
-                                <Sparkles size={14} /> Synthesize Logic
+                                <Sparkles size={14} /> Generate Preview
                             </button>
                         )}
                     </div>
@@ -416,7 +744,7 @@ const ReportGenerationModal: React.FC<{
                         {isThinking ? (
                             <div className="flex-1 flex flex-col items-center justify-center space-y-4">
                                 <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Engaging neural core for synthesis...</p>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Generating report content...</p>
                             </div>
                         ) : previewContent ? (
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar prose prose-invert prose-sm max-w-none">
@@ -426,7 +754,7 @@ const ReportGenerationModal: React.FC<{
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-800">
                                 <FileSearch size={64} className="mb-4 opacity-10" />
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Ready for Synthesis</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Select Template to Begin</p>
                             </div>
                         )}
                     </div>

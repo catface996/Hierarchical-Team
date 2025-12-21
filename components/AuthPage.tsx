@@ -11,8 +11,15 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+export interface UserInfo {
+  email: string;
+  name: string;
+  avatar?: string;
+  loginTime: number;
+}
+
 interface AuthPageProps {
-  onLogin: () => void;
+  onLogin: (user: UserInfo) => void;
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
@@ -33,20 +40,25 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     // Simulate API Call
     setTimeout(() => {
       setIsLoading(false);
-      
+
       // Basic Mock Validation
       if (!email || !password) {
         setError('Please fill in all required fields.');
         return;
       }
-      
+
       if (mode === 'register' && !name) {
         setError('Please enter your full name.');
         return;
       }
 
-      // Success
-      onLogin();
+      // Success - 创建用户信息并回调
+      const userInfo: UserInfo = {
+        email,
+        name: name || email.split('@')[0], // 如果没有名字，使用邮箱前缀
+        loginTime: Date.now()
+      };
+      onLogin(userInfo);
     }, 1500);
   };
 
