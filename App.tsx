@@ -52,6 +52,9 @@ import AgentManagement from './components/AgentManagement';
 import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
 import ReportTemplateManagement from './components/ReportTemplateManagement';
+import PromptManagement from './components/PromptManagement';
+import ModelManagement from './components/ModelManagement';
+import ToolManagement from './components/ToolManagement';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
 import ScannerView from './components/ScannerView';
@@ -109,7 +112,7 @@ const App: React.FC = () => {
   }, []);
 
   // 核心视图切换
-  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'report-templates' | 'discovery' | 'scanner'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'prompts' | 'models' | 'tools' | 'reports' | 'report-detail' | 'report-templates' | 'discovery' | 'scanner'>('dashboard');
   const [discoverySubView, setDiscoverySubView] = useState<'connectors' | 'inbox'>('connectors');
 
   const [selectedTopologyId, setSelectedTopologyId] = useState<string | null>(null);
@@ -638,7 +641,13 @@ const App: React.FC = () => {
         const rNode = topology.nodes.find(n => n.id === selectedResourceId);
         return rNode ? <ResourceDetailView node={rNode} team={teams.find(t => t.resourceId === rNode.id)} associatedTopologyGroups={topologyGroups.filter(tg => tg.nodeIds.includes(rNode.id))} onBack={() => setCurrentView('resources')} onNavigateToTopology={(id) => { setSelectedTopologyId(id); setCurrentView('topology-detail'); }} onUpdateNode={(n) => setTopology(prev => ({...prev, nodes: prev.nodes.map(x => x.id === n.id ? n : x)}))} onUpdateAgentConfig={() => {}} onAddWorker={() => {}} onRemoveWorker={() => {}} /> : null;
       case 'agents':
-        return <AgentManagement teams={teams} onUpdateAgentConfig={() => {}} onDeleteAgent={() => {}} onManagePrompts={() => {}} onManageModels={() => {}} onManageTools={() => {}} />;
+        return <AgentManagement teams={teams} onUpdateAgentConfig={() => {}} onDeleteAgent={() => {}} onManagePrompts={() => setCurrentView('prompts')} onManageModels={() => setCurrentView('models')} onManageTools={() => setCurrentView('tools')} />;
+      case 'prompts':
+        return <PromptManagement prompts={INITIAL_PROMPT_TEMPLATES} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => setCurrentView('agents')} />;
+      case 'models':
+        return <ModelManagement models={INITIAL_MODELS} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => setCurrentView('agents')} />;
+      case 'tools':
+        return <ToolManagement tools={INITIAL_TOOLS} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => setCurrentView('agents')} />;
       case 'reports':
         return <ReportManagement reports={reports} onViewReport={(r) => { setSelectedReportId(r.id); setCurrentView('report-detail'); }} onManageTemplates={() => setCurrentView('report-templates')} />;
       case 'report-detail':
@@ -767,7 +776,7 @@ const App: React.FC = () => {
                     <button 
                         key={item.id}
                         onClick={() => setCurrentView(item.id as any)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${currentView === item.id || (item.id === 'topologies' && currentView === 'topology-detail') || (item.id === 'reports' && (currentView === 'report-detail' || currentView === 'report-templates')) ? 'bg-slate-800 text-cyan-400 shadow-inner' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${currentView === item.id || (item.id === 'topologies' && currentView === 'topology-detail') || (item.id === 'reports' && (currentView === 'report-detail' || currentView === 'report-templates')) || (item.id === 'agents' && (currentView === 'prompts' || currentView === 'models' || currentView === 'tools')) ? 'bg-slate-800 text-cyan-400 shadow-inner' : 'text-slate-400 hover:text-slate-200'}`}
                     >
                         <item.icon size={14} /> {item.label}
                     </button>
