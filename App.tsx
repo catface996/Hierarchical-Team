@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   INITIAL_TOPOLOGY, 
   generateTeamForNode, 
@@ -52,9 +52,10 @@ import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
+import ScannerView from './components/ScannerView';
 import AuthPage, { UserInfo } from './components/AuthPage';
 import { SettingsModal, AppSettings } from './components/SettingsModal';
-import { Activity, Database, Network, FileText, LogOut, Settings, Play, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
+import { Activity, Database, Network, FileText, LogOut, Settings, Play, Square, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
 
 // 本地存储的键名
 const AUTH_STORAGE_KEY = 'entropyops_auth';
@@ -106,13 +107,15 @@ const App: React.FC = () => {
   }, []);
 
   // 核心视图切换
-  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'discovery'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'discovery' | 'scanner'>('dashboard');
   const [discoverySubView, setDiscoverySubView] = useState<'connectors' | 'inbox'>('connectors');
 
   const [selectedTopologyId, setSelectedTopologyId] = useState<string | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [diagnosisScope, setDiagnosisScope] = useState<TopologyGroup | null>(null);
+  const [scannerLogs, setScannerLogs] = useState<LogMessage[]>([]);
 
   // 报告生成状态
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -129,6 +132,7 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [userQuery, setUserQuery] = useState("Analyze system state and health status.");
   const [isSimulating, setIsSimulating] = useState(false);
+  const abortRef = useRef(false);
   
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(340);
@@ -210,10 +214,32 @@ const App: React.FC = () => {
     };
   }, [topology, diagnosisScope, discoveredDelta]);
 
+  // --- 中断诊断 ---
+  const handleAbortDiagnosis = () => {
+    abortRef.current = true;
+    setLogs(prev => [...prev, {
+      id: `sys-abort-${Date.now()}`,
+      timestamp: Date.now(),
+      fromAgentId: 'sys',
+      fromAgentName: 'SYSTEM',
+      content: '⚠️ MISSION ABORTED - Diagnosis interrupted by user.',
+      type: 'system'
+    }]);
+    // 重置所有 agent 状态
+    setGlobalAgent(p => ({ ...p, status: AgentStatus.IDLE, findings: undefined }));
+    setTeams(prev => prev.map(t => ({
+      ...t,
+      supervisor: { ...t.supervisor, status: AgentStatus.IDLE, findings: undefined },
+      members: t.members.map(m => ({ ...m, status: AgentStatus.IDLE, currentTask: undefined, findings: undefined }))
+    })));
+    setIsSimulating(false);
+  };
+
   // --- 执行诊断逻辑：分级协作流 ---
   const handleExecuteDiagnosis = async () => {
     if (isSimulating || !userQuery.trim()) return;
 
+    abortRef.current = false;
     setIsSimulating(true);
     const teamResults: { teamName: string; warnings: number; critical: number }[] = [];
 
@@ -228,6 +254,7 @@ const App: React.FC = () => {
     }]);
 
     await delay(800);
+    if (abortRef.current) return;
 
     // 1. Global Orchestrator 开始思考
     setGlobalAgent(p => ({ ...p, status: AgentStatus.THINKING }));
@@ -246,10 +273,12 @@ const App: React.FC = () => {
 
     let globalThinkContent = '';
     for await (const chunk of streamGlobalThinking(userQuery, activeTeams)) {
+      if (abortRef.current) return;
       globalThinkContent += chunk;
       setLogs(prev => prev.map(l => l.id === globalThinkLogId ? { ...l, content: globalThinkContent } : l));
     }
     setLogs(prev => prev.map(l => l.id === globalThinkLogId ? { ...l, isStreaming: false } : l));
+    if (abortRef.current) return;
 
     // 生成执行计划
     const plan = await generateGlobalPlan(userQuery, topology, activeTeams);
@@ -271,9 +300,11 @@ const App: React.FC = () => {
     }]);
 
     await delay(500);
+    if (abortRef.current) return;
 
     // 2. 逐级分发到各 Team Supervisor
     for (const step of plan) {
+      if (abortRef.current) return;
       const team = teams.find(t => t.id === step.teamId);
       if (!team) continue;
 
@@ -296,6 +327,7 @@ const App: React.FC = () => {
       }]);
 
       await delay(400);
+      if (abortRef.current) return;
 
       // Team Lead 思考过程
       const leadThinkLogId = `lead-think-${team.id}-${Date.now()}`;
@@ -311,10 +343,12 @@ const App: React.FC = () => {
 
       let leadThinkContent = '';
       for await (const chunk of streamTeamLeadThinking(team, step.instruction)) {
+        if (abortRef.current) return;
         leadThinkContent += chunk;
         setLogs(prev => prev.map(l => l.id === leadThinkLogId ? { ...l, content: leadThinkContent } : l));
       }
       setLogs(prev => prev.map(l => l.id === leadThinkLogId ? { ...l, isStreaming: false } : l));
+      if (abortRef.current) return;
 
       // Team Lead 状态变为工作中
       setTeams(prev => prev.map(t =>
@@ -328,6 +362,7 @@ const App: React.FC = () => {
       const workerResults: { warnings: number; critical: number }[] = [];
 
       for (const del of delegations) {
+        if (abortRef.current) return;
         const worker = team.members.find(m => m.id === del.agentId);
         if (!worker) continue;
 
@@ -355,6 +390,7 @@ const App: React.FC = () => {
         }]);
 
         await delay(300);
+        if (abortRef.current) return;
 
         // 4. Worker 任务执行（流式输出）
         const stream = streamWorkerTask(worker, del.task, team.name);
@@ -371,10 +407,12 @@ const App: React.FC = () => {
         }]);
 
         for await (const chunk of stream) {
+          if (abortRef.current) return;
           fullContent += chunk;
           setLogs(prev => prev.map(l => l.id === logId ? { ...l, content: fullContent } : l));
         }
         setLogs(prev => prev.map(l => l.id === logId ? { ...l, isStreaming: false } : l));
+        if (abortRef.current) return;
 
         // 解析 Worker 结果
         const warningMatch = fullContent.match(/Warnings:\s*(\d+)/);
@@ -432,9 +470,11 @@ const App: React.FC = () => {
       }]);
 
       await delay(300);
+      if (abortRef.current) return;
     }
 
     // 5. Global Orchestrator 最终汇总
+    if (abortRef.current) return;
     setGlobalAgent(p => ({ ...p, status: AgentStatus.THINKING }));
 
     const summaryLogId = `gs-summary-${Date.now()}`;
@@ -450,10 +490,12 @@ const App: React.FC = () => {
 
     let summaryContent = '';
     for await (const chunk of streamGlobalSummary(teamResults)) {
+      if (abortRef.current) return;
       summaryContent += chunk;
       setLogs(prev => prev.map(l => l.id === summaryLogId ? { ...l, content: summaryContent } : l));
     }
     setLogs(prev => prev.map(l => l.id === summaryLogId ? { ...l, isStreaming: false } : l));
+    if (abortRef.current) return;
 
     // 更新 Global Orchestrator 状态
     const globalWarnings = teamResults.reduce((sum, r) => sum + r.warnings, 0);
@@ -483,26 +525,82 @@ const App: React.FC = () => {
       setIsGeneratingReport(false);
   };
 
-  const handleScan = async (sourceId: string) => {
+  const handleScan = (sourceId: string) => {
     const source = discoverySources.find(s => s.id === sourceId);
     if (!source) return;
-    
-    setCurrentView('diagnosis');
+
+    // Navigate to scanner view - don't auto-scan, just show welcome message
+    setSelectedSourceId(sourceId);
+    setCurrentView('scanner');
+    setScannerLogs([
+      {
+        id: 'sys-welcome',
+        timestamp: Date.now(),
+        fromAgentId: 'scouter',
+        fromAgentName: 'Scouter Agent',
+        content: `Successfully connected to ${source.name} (${source.type}).\n\nI'm ready to help you discover and manage your infrastructure. You can:\n- Ask me to "scan" for new resources\n- Query about the current topology\n- Get help understanding discovered nodes\n\nWhat would you like to do?`,
+        type: 'report'
+      }
+    ]);
+  };
+
+  // Handle scanner chat message
+  const handleScannerMessage = async (message: string) => {
+    const source = discoverySources.find(s => s.id === selectedSourceId);
+    if (!source) return;
+
+    // Add user message
+    setScannerLogs(prev => [...prev, {
+      id: `user-${Date.now()}`,
+      timestamp: Date.now(),
+      fromAgentId: 'user',
+      fromAgentName: 'You',
+      content: message,
+      type: 'user' as any
+    }]);
+
     setIsSimulating(true);
-    setLogs([{ id: 'sys-scan-1', timestamp: Date.now(), fromAgentId: 'sys', fromAgentName: 'SYSTEM', content: `Accessing ${source.name}...`, type: 'system' }]);
-    
-    await delay(1200);
-    const rawPayload = source.type === 'K8s' ? RAW_SCAN_PAYLOADS.k8s : RAW_SCAN_PAYLOADS.trace;
-    setLogs(prev => [...prev, { id: 'sys-scan-raw', timestamp: Date.now(), fromAgentId: 'sys', fromAgentName: 'SCANNER', content: `Raw Data Buffer Ingested:\n${rawPayload.substring(0, 150)}...`, type: 'discovery' }]);
-    
-    setGlobalAgent(prev => ({...prev, status: AgentStatus.THINKING}));
-    const delta = await analyzeInfrastructureDelta(rawPayload);
-    setGlobalAgent(prev => ({...prev, status: AgentStatus.IDLE}));
-    
-    setLogs(prev => [...prev, { id: 'sys-scan-2', timestamp: Date.now(), fromAgentId: 'global-sup', fromAgentName: 'Orchestrator', content: `Infrastructure analysis finished. AI detected ${delta.nodes.length} unknown resources. Reasoning: ${delta.reasoning}`, type: 'report' }]);
-    
-    setDiscoveredDelta(prev => ({ nodes: [...prev.nodes, ...delta.nodes], links: [...prev.links, ...delta.links] }));
-    setDiscoverySources(prev => prev.map(s => s.id === sourceId ? {...s, lastScan: Date.now()} : s));
+
+    // Simulate agent thinking
+    await delay(1000);
+
+    // Check if user wants to scan again
+    if (message.toLowerCase().includes('scan') || message.toLowerCase().includes('refresh')) {
+      setScannerLogs(prev => [...prev, {
+        id: `scouter-${Date.now()}`,
+        timestamp: Date.now(),
+        fromAgentId: 'scouter',
+        fromAgentName: 'Scouter Agent',
+        content: `Initiating a fresh scan of ${source.name}...`,
+        type: 'system'
+      }]);
+
+      await delay(1200);
+      const rawPayload = source.type === 'K8s' ? RAW_SCAN_PAYLOADS.k8s : RAW_SCAN_PAYLOADS.trace;
+      const delta = await analyzeInfrastructureDelta(rawPayload);
+
+      setScannerLogs(prev => [...prev, {
+        id: `scouter-result-${Date.now()}`,
+        timestamp: Date.now(),
+        fromAgentId: 'scouter',
+        fromAgentName: 'Scouter Agent',
+        content: `Re-scan complete. Found ${delta.nodes.length} resource(s).\n\n${delta.reasoning}`,
+        type: 'report'
+      }]);
+
+      setDiscoveredDelta(prev => ({ nodes: [...prev.nodes, ...delta.nodes], links: [...prev.links, ...delta.links] }));
+    } else {
+      // Generic response
+      setScannerLogs(prev => [...prev, {
+        id: `scouter-${Date.now()}`,
+        timestamp: Date.now(),
+        fromAgentId: 'scouter',
+        fromAgentName: 'Scouter Agent',
+        content: `I'm monitoring the ${source.type} infrastructure at ${source.endpoint}.\n\nCurrently tracking ${topology.nodes.length} managed resources and ${discoveredDelta.nodes.length} pending discovery.\n\nYou can ask me to:\n- Scan for new resources\n- Explain discovered nodes\n- Check connection status`,
+        type: 'report'
+      }]);
+    }
+
     setIsSimulating(false);
   };
 
@@ -558,6 +656,23 @@ const App: React.FC = () => {
              </div>
           </div>
         );
+      case 'scanner':
+        const selectedSource = discoverySources.find(s => s.id === selectedSourceId);
+        return selectedSource ? (
+          <ScannerView
+            source={selectedSource}
+            managedNodes={topology.nodes}
+            managedLinks={topology.links}
+            discoveredNodes={discoveredDelta.nodes}
+            discoveredLinks={discoveredDelta.links}
+            logs={scannerLogs}
+            isScanning={isSimulating}
+            onBack={() => setCurrentView('discovery')}
+            onSendMessage={handleScannerMessage}
+            onApproveNode={handleApproveNode}
+            onRejectNode={(id) => setDiscoveredDelta(p => ({...p, nodes: p.nodes.filter(n => n.id !== id)}))}
+          />
+        ) : null;
       case 'diagnosis':
       default:
         return (
@@ -598,9 +713,15 @@ const App: React.FC = () => {
                                 <FileSearch size={14} /> GENERATE REPORT
                              </button>
                           )}
-                          <button onClick={handleExecuteDiagnosis} disabled={isSimulating} className="h-12 px-8 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95">
-                            <Play size={14} fill="currentColor" /> EXECUTE
-                          </button>
+                          {isSimulating ? (
+                            <button onClick={handleAbortDiagnosis} className="h-12 px-8 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95 animate-pulse">
+                              <Square size={14} fill="currentColor" /> ABORT
+                            </button>
+                          ) : (
+                            <button onClick={handleExecuteDiagnosis} className="h-12 px-8 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95">
+                              <Play size={14} fill="currentColor" /> EXECUTE
+                            </button>
+                          )}
                       </div>
                   </div>
               </section>
@@ -611,7 +732,7 @@ const App: React.FC = () => {
               />
               <aside style={{ width: rightSidebarWidth }} className="bg-slate-900/20 relative shrink-0">
                   <div className="absolute top-0 left-0 w-full h-10 border-b border-slate-800 bg-slate-900/40 z-10 flex items-center px-4 font-bold text-[10px] text-slate-400 uppercase tracking-widest">Topology Monitor</div>
-                  <TopologyGraph data={dashboardTopology} activeNodeIds={activeNodeIds} onNodeClick={() => {}} onCreateLink={handleCreateLink} />
+                  <TopologyGraph data={dashboardTopology} activeNodeIds={activeNodeIds} onNodeClick={() => {}} onCreateLink={handleCreateLink} showLegend={false} />
               </aside>
           </div>
         );

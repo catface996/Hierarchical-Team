@@ -21,9 +21,10 @@ interface TopologyGraphProps {
   onNodeClick: (nodeId: string) => void;
   onNodeDoubleClick?: (nodeId: string) => void;
   onCreateLink?: (link: { source: string; target: string; type: string }) => void;
+  showLegend?: boolean;
 }
 
-const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNodeClick, onNodeDoubleClick, onCreateLink }) => {
+const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNodeClick, onNodeDoubleClick, onCreateLink, showLegend = true }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeSelectionRef = useRef<d3.Selection<SVGGElement, any, any, any> | null>(null);
@@ -99,11 +100,18 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
     if (!nodeSelectionRef.current) return;
 
     nodeSelectionRef.current.select("rect.node-rect")
-      .attr("stroke-width", (d: any) => activeNodeIds.has(d.data?.id || d.id) ? 3 : (d.data?.isShadow || d.isShadow ? 1.5 : 2))
-      .attr("filter", (d: any) => activeNodeIds.has(d.data?.id || d.id) ? "drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))" : "none")
+      .attr("stroke-width", (d: any) => activeNodeIds.has(d.data?.id || d.id) ? 3.5 : (d.data?.isShadow || d.isShadow ? 1.5 : 2))
+      .attr("filter", (d: any) => {
+        const nodeData = d.data || d;
+        if (activeNodeIds.has(nodeData.id)) {
+          const color = getTypeColor(nodeData.type, nodeData.isShadow);
+          return `drop-shadow(0 0 12px ${hexToRgba(color, 0.8)})`;
+        }
+        return "none";
+      })
       .attr("stroke", (d: any) => {
         const nodeData = d.data || d;
-        if (activeNodeIds.has(nodeData.id)) return "#22d3ee"; // cyan-400 高亮色
+        // 活跃节点也使用自身颜色，只是更亮/更醒目
         return getTypeColor(nodeData.type, nodeData.isShadow);
       });
 
@@ -140,6 +148,14 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
     if (type === 'Cache') return '#f59e0b';
     if (type === 'Infrastructure') return '#94a3b8';
     return '#3b82f6';
+  };
+
+  // 将 hex 颜色转换为 rgba 用于 drop-shadow
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
   useEffect(() => {
@@ -182,13 +198,22 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       nodesInCallFlow.add(targetId);
     });
 
+    // 3.1 找出有任何链接的节点（包括所有类型的链接）
+    const nodesWithAnyLink = new Set<string>();
+    data.links.forEach(l => {
+      const sourceId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+      const targetId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      nodesWithAnyLink.add(sourceId);
+      nodesWithAnyLink.add(targetId);
+    });
+
     // 4. 找出所有根节点（入度为0且参与流量的节点）
     const rootNodes = data.nodes.filter(n =>
       (inDegree.get(n.id) || 0) === 0 && nodesInCallFlow.has(n.id)
     );
 
-    // 4.1 找出孤立节点（没有任何call链路的节点）
-    const orphanNodes = data.nodes.filter(n => !nodesInCallFlow.has(n.id));
+    // 4.1 找出孤立节点（没有任何链接的节点）
+    const orphanNodes = data.nodes.filter(n => !nodesWithAnyLink.has(n.id));
 
     // 5. 构建层级数据结构（使用BFS避免循环）
     const visited = new Set<string>();
@@ -215,10 +240,20 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       return buildHierarchy(n.id);
     }).filter(Boolean);
 
-    // 将孤立节点也加入（作为独立的叶子节点）
+    // 找出有非call链接但没有call链接的节点（独立但非孤立）
+    const standaloneNodes = data.nodes.filter(n =>
+      !nodesInCallFlow.has(n.id) && nodesWithAnyLink.has(n.id)
+    );
+    const standaloneChildren = standaloneNodes.map(n => ({
+      ...n,
+      isStandalone: true, // 有链接但不在call流中
+      children: undefined
+    }));
+
+    // 将真正孤立的节点（没有任何链接）也加入
     const orphanChildren = orphanNodes.map(n => ({
       ...n,
-      isOrphan: true, // 标记为孤立节点
+      isOrphan: true, // 标记为孤立节点（无任何链接）
       children: undefined
     }));
 
@@ -226,7 +261,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       id: '__virtual_root__',
       label: 'Root',
       type: 'virtual',
-      children: [...treeChildren, ...orphanChildren]
+      children: [...treeChildren, ...standaloneChildren, ...orphanChildren]
     };
 
     // 6. 使用 d3.hierarchy 和 d3.tree 创建布局
@@ -254,6 +289,8 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
 
     const nodeRectWidth = 140;
     const nodeRectHeight = 50;
+    const rectWidth = 140;
+    const rectHeight = 50;
     const contentWidth = maxX - minX + nodeRectWidth;
     const contentHeight = maxY - minY + nodeRectHeight;
 
@@ -308,7 +345,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .data(treeLinks)
       .join("g");
 
-    // 使用曲线路径
+    // 使用曲线路径 - 从底部端口到顶部端口
     const linkPath = linkGroup.append("path")
       .attr("id", (d, i) => `link-${i}`)
       .attr("fill", "none")
@@ -317,11 +354,11 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("stroke", "#0891b2")
       .attr("opacity", 0.7)
       .attr("d", (d: any) => {
-        // 使用垂直曲线
+        // 从源节点底部端口到目标节点顶部端口
         const sx = d.source.x;
-        const sy = d.source.y;
+        const sy = d.source.y + rectHeight / 2; // 底部端口
         const tx = d.target.x;
-        const ty = d.target.y;
+        const ty = d.target.y - rectHeight / 2; // 顶部端口
         const my = (sy + ty) / 2;
         return `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`;
       });
@@ -403,24 +440,30 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("d", d => {
         const source = nodePositions.get(d.source)!;
         const target = nodePositions.get(d.target)!;
-        const mx = (source.x + target.x) / 2;
-        const my = (source.y + target.y) / 2;
+        // 根据相对位置决定从哪个端口连接
+        const sourceIsAbove = source.y < target.y;
+        const sx = source.x;
+        const sy = sourceIsAbove ? source.y + rectHeight / 2 : source.y - rectHeight / 2;
+        const tx = target.x;
+        const ty = sourceIsAbove ? target.y - rectHeight / 2 : target.y + rectHeight / 2;
+        const mx = (sx + tx) / 2;
+        const my = (sy + ty) / 2;
         // 使用弧线区分额外链接
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const dr = Math.sqrt(dx * dx + dy * dy) * 0.5;
-        return `M${source.x},${source.y} Q${mx + dr * 0.3},${my} ${target.x},${target.y}`;
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const dr = Math.sqrt(dx * dx + dy * dy) * 0.3;
+        return `M${sx},${sy} Q${mx + dr * 0.3},${my} ${tx},${ty}`;
       });
 
     // 用于更新连接线的函数
     const updateLinks = () => {
-      // 更新树形连接线
+      // 更新树形连接线 - 从底部端口到顶部端口
       linkGroup.select("path.base-link")
         .attr("d", (d: any) => {
           const sx = d.source.x;
-          const sy = d.source.y;
+          const sy = d.source.y + rectHeight / 2; // 底部端口
           const tx = d.target.x;
-          const ty = d.target.y;
+          const ty = d.target.y - rectHeight / 2; // 顶部端口
           const my = (sy + ty) / 2;
           return `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`;
         });
@@ -430,18 +473,24 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
         nodePositions.set(d.data.id, { x: d.x, y: d.y });
       });
 
-      // 更新非树形连接线
+      // 更新非树形连接线 - 从端口到端口
       extraLinkGroup
         .attr("d", (d: any) => {
           const source = nodePositions.get(d.source);
           const target = nodePositions.get(d.target);
           if (!source || !target) return "";
-          const mx = (source.x + target.x) / 2;
-          const my = (source.y + target.y) / 2;
-          const dx = target.x - source.x;
-          const dy = target.y - source.y;
-          const dr = Math.sqrt(dx * dx + dy * dy) * 0.5;
-          return `M${source.x},${source.y} Q${mx + dr * 0.3},${my} ${target.x},${target.y}`;
+          // 根据相对位置决定从哪个端口连接
+          const sourceIsAbove = source.y < target.y;
+          const sx = source.x;
+          const sy = sourceIsAbove ? source.y + rectHeight / 2 : source.y - rectHeight / 2;
+          const tx = target.x;
+          const ty = sourceIsAbove ? target.y - rectHeight / 2 : target.y + rectHeight / 2;
+          const mx = (sx + tx) / 2;
+          const my = (sy + ty) / 2;
+          const dx = tx - sx;
+          const dy = ty - sy;
+          const dr = Math.sqrt(dx * dx + dy * dy) * 0.3;
+          return `M${sx},${sy} Q${mx + dr * 0.3},${my} ${tx},${ty}`;
         });
     };
 
@@ -482,9 +531,6 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
 
     nodeSelectionRef.current = nodeGroup as any;
 
-    const rectWidth = 140;
-    const rectHeight = 50;
-
     nodeGroup.append("rect")
       .attr("width", rectWidth)
       .attr("height", rectHeight)
@@ -494,17 +540,17 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
       .attr("ry", 8)
       .attr("fill", (d: any) => {
         if (d.data.isShadow) return "rgba(88, 28, 135, 0.2)";
-        if (d.data.isOrphan) return "rgba(30, 41, 59, 0.8)"; // 孤立节点背景
+        if (d.data.isOrphan) return "rgba(30, 41, 59, 0.8)"; // 真正孤立节点（无任何链接）背景
         return "#0f172a";
       })
       .attr("stroke", (d: any) => {
-        if (d.data.isOrphan) return "#64748b"; // 孤立节点边框色
+        if (d.data.isOrphan) return "#64748b"; // 真正孤立节点边框色
         return getTypeColor(d.data.type, d.data.isShadow);
       })
       .attr("stroke-width", (d: any) => d.data.isShadow ? 1.5 : 2)
       .attr("stroke-dasharray", (d: any) => {
         if (d.data.isShadow) return "5,5";
-        if (d.data.isOrphan) return "4,2"; // 孤立节点虚线边框
+        if (d.data.isOrphan) return "4,2"; // 真正孤立节点虚线边框
         return "none";
       })
       .attr("class", "node-rect transition-all duration-300");
@@ -526,7 +572,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
     nodeGroup.append("text")
       .text((d: any) => {
         if (d.data.isShadow) return "INFERRED";
-        if (d.data.isOrphan) return "STANDALONE";
+        if (d.data.isOrphan) return "ISOLATED"; // 真正孤立（无任何链接）
         return "ONLINE";
       })
       .attr("x", 0)
@@ -627,17 +673,19 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
   return (
     <div ref={containerRef} className="w-full h-full bg-slate-900 overflow-hidden relative" onClick={handleBackgroundClick}>
       {/* 图例 */}
-      <div className="absolute top-2 left-2 z-10 pointer-events-none p-3 bg-slate-950/40 backdrop-blur rounded-lg border border-slate-800">
-        <div className="flex flex-col gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded bg-blue-500"></div> System Node</div>
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-purple-500 border-dashed"></div> Ghost Node (AI Discovered)</div>
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-slate-500" style={{borderStyle: 'dashed'}}></div> Standalone Node</div>
-          <div className="mt-2 pt-2 border-t border-slate-800">
-             <div className="flex items-center gap-2"><div className="w-3 h-0.5 bg-cyan-600"></div> Static Link</div>
-             <div className="flex items-center gap-2"><div className="w-3 h-0.5 border-t border-dashed border-purple-400"></div> Inferred Traffic</div>
+      {showLegend && (
+        <div className="absolute top-2 left-2 z-10 pointer-events-none p-3 bg-slate-950/40 backdrop-blur rounded-lg border border-slate-800">
+          <div className="flex flex-col gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded bg-blue-500"></div> System Node</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-purple-500 border-dashed"></div> Ghost Node (AI Discovered)</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded border border-slate-500" style={{borderStyle: 'dashed'}}></div> Isolated Node (No Links)</div>
+            <div className="mt-2 pt-2 border-t border-slate-800">
+               <div className="flex items-center gap-2"><div className="w-3 h-0.5 bg-cyan-600"></div> Static Link</div>
+               <div className="flex items-center gap-2"><div className="w-3 h-0.5 border-t border-dashed border-purple-400"></div> Inferred Traffic</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 链接模式指示器 */}
       {linkingState && (

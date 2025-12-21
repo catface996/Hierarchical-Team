@@ -55,12 +55,12 @@ const AgentCard: React.FC<{
           <span className={`text-[9px] font-mono uppercase ${getStatusColor(agent.status)}`}>
             {getStatusLabel(agent.status)}
           </span>
-          {agent.findings.warnings > 0 && (
+          {agent.findings?.warnings > 0 && (
             <span className="flex items-center gap-0.5 px-0.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-[8px] text-yellow-500">
               <AlertTriangle size={7} />{agent.findings.warnings}
             </span>
           )}
-          {agent.findings.critical > 0 && (
+          {agent.findings?.critical > 0 && (
             <span className="flex items-center gap-0.5 px-0.5 rounded bg-red-500/10 border border-red-500/20 text-[8px] text-red-500">
               <AlertOctagon size={7} />{agent.findings.critical}
             </span>
