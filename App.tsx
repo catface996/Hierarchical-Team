@@ -812,7 +812,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-8">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
                 <Activity className="text-cyan-400" size={20} />
-                <span className="font-bold text-white tracking-tight uppercase tracking-widest">EntropyOps</span>
+                <span className="font-bold tracking-tight uppercase tracking-widest"><span className="text-white">Entropy</span><span className="text-cyan-400">Ops</span></span>
             </div>
             <nav className="flex items-center gap-1">
                 {[
