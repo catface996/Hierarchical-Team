@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { TopologyNode, TopologyLayer } from '../types';
+import StyledSelect from './ui/StyledSelect';
 
 // Layer options for the dropdown
 const LAYER_OPTIONS: { value: TopologyLayer; label: string }[] = [
@@ -306,29 +307,27 @@ const ResourceFormModal: React.FC<{
             </div>
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Resource Type</label>
-              <select
+              <StyledSelect
                 value={formData.type}
-                onChange={e => setFormData({...formData, type: e.target.value as any})}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none transition-all"
-              >
-                <option value="Service">Service</option>
-                <option value="Database">Database</option>
-                <option value="Gateway">Gateway</option>
-                <option value="Cache">Cache</option>
-                <option value="Infrastructure">Infrastructure</option>
-              </select>
+                onChange={(val) => setFormData({...formData, type: val as any})}
+                options={[
+                  { value: 'Service', label: 'Service' },
+                  { value: 'Database', label: 'Database' },
+                  { value: 'Gateway', label: 'Gateway' },
+                  { value: 'Cache', label: 'Cache' },
+                  { value: 'Infrastructure', label: 'Infrastructure' }
+                ]}
+                placeholder="Select resource type..."
+              />
             </div>
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Layer</label>
-              <select
+              <StyledSelect
                 value={formData.layer || 'application'}
-                onChange={e => setFormData({...formData, layer: e.target.value as TopologyLayer})}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none transition-all"
-              >
-                {LAYER_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({...formData, layer: val as TopologyLayer})}
+                options={LAYER_OPTIONS}
+                placeholder="Select layer..."
+              />
             </div>
           </div>
           <div className="pt-2 flex justify-end gap-3">

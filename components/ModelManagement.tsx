@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { AIModel } from '../types';
+import StyledSelect from './ui/StyledSelect';
 import { 
   ArrowLeft, 
   Cpu, 
@@ -230,18 +231,28 @@ const ModelFormModal: React.FC<{ model: AIModel | null, onClose: () => void, onS
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data Modality</label>
-                      <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as any})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none">
-                          <option value="Text">Text</option>
-                          <option value="Multimodal">Multimodal</option>
-                          <option value="Audio">Audio</option>
-                      </select>
+                      <StyledSelect
+                        value={formData.type}
+                        onChange={(val) => setFormData({...formData, type: val as any})}
+                        options={[
+                          { value: 'Text', label: 'Text' },
+                          { value: 'Multimodal', label: 'Multimodal' },
+                          { value: 'Audio', label: 'Audio' }
+                        ]}
+                        placeholder="Select modality..."
+                      />
                   </div>
                    <div>
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">System Status</label>
-                      <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none">
-                          <option value="Active">Active</option>
-                          <option value="Deprecated">Deprecated</option>
-                      </select>
+                      <StyledSelect
+                        value={formData.status}
+                        onChange={(val) => setFormData({...formData, status: val as any})}
+                        options={[
+                          { value: 'Active', label: 'Active' },
+                          { value: 'Deprecated', label: 'Deprecated' }
+                        ]}
+                        placeholder="Select status..."
+                      />
                   </div>
               </div>
               <div className="pt-4 flex justify-end gap-3">

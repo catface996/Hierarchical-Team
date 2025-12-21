@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ReportTemplate } from '../types';
+import StyledSelect from './ui/StyledSelect';
 import { 
   Search, 
   Plus, 
@@ -234,9 +235,12 @@ const TemplateFormModal: React.FC<{ template: ReportTemplate | null, onClose: ()
                 </div>
                 <div>
                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Category Sector</label>
-                   <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none transition-all">
-                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
+                   <StyledSelect
+                     value={formData.category}
+                     onChange={(val) => setFormData({...formData, category: val as any})}
+                     options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                     placeholder="Select category..."
+                   />
                 </div>
             </div>
             <div>

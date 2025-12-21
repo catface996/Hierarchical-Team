@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Agent, AgentConfig } from '../types';
 import { Sliders, X, Save, FileText } from 'lucide-react';
+import StyledSelect from './ui/StyledSelect';
 
 // Predefined Templates for Agents (Supervisors/Workers)
 export const AGENT_TEMPLATES = [
@@ -77,15 +78,16 @@ export const AgentConfigModal: React.FC<AgentConfigModalProps> = ({ agent, onClo
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Model Selection</label>
-                   <select 
+                   <StyledSelect
                      value={formData.model}
-                     onChange={e => setFormData({...formData, model: e.target.value})}
-                     className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
-                   >
-                       <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                       <option value="gemini-3-pro-preview">Gemini 3 Pro (Preview)</option>
-                       <option value="gemini-2.5-flash-thinking">Gemini 2.5 Flash (Thinking)</option>
-                   </select>
+                     onChange={(val) => setFormData({...formData, model: val})}
+                     options={[
+                       { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+                       { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)' },
+                       { value: 'gemini-2.5-flash-thinking', label: 'Gemini 2.5 Flash (Thinking)' }
+                     ]}
+                     placeholder="Select model..."
+                   />
                 </div>
                 <div>
                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex justify-between">
@@ -113,15 +115,26 @@ export const AgentConfigModal: React.FC<AgentConfigModalProps> = ({ agent, onClo
             {/* Template Selector */}
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Apply Template</label>
-                <select 
-                    onChange={handleTemplateChange}
-                    className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
-                >
-                    <option value="">Select a template to auto-fill instructions...</option>
-                    {AGENT_TEMPLATES.map(t => (
-                        <option key={t.name} value={t.name}>{t.name}</option>
-                    ))}
-                </select>
+                <StyledSelect
+                    value=""
+                    onChange={(val) => {
+                      if (val) {
+                        const template = AGENT_TEMPLATES.find(t => t.name === val);
+                        if (template) {
+                          setFormData({
+                            ...formData,
+                            systemInstruction: template.systemInstruction,
+                            defaultContext: template.defaultContext
+                          });
+                        }
+                      }
+                    }}
+                    options={[
+                      { value: '', label: 'Select a template to auto-fill instructions...' },
+                      ...AGENT_TEMPLATES.map(t => ({ value: t.name, label: t.name }))
+                    ]}
+                    placeholder="Select a template..."
+                />
             </div>
 
             {/* System Instruction */}

@@ -97,6 +97,7 @@ export interface DiscoverySource {
   endpoint: string;
   status: 'Connected' | 'Error' | 'Scanning';
   lastScan?: number;
+  agentId?: string;
 }
 
 export interface DiscoveredDelta {

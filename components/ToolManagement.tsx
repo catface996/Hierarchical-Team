@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { AgentTool } from '../types';
+import StyledSelect from './ui/StyledSelect';
 import { 
   ArrowLeft, 
   Wrench, 
@@ -207,11 +208,16 @@ const ToolFormModal: React.FC<{ tool: AgentTool | null, onClose: () => void, onS
               </div>
               <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Hook Architecture</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as any})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none">
-                      <option value="Function">Function</option>
-                      <option value="Integration">Integration</option>
-                      <option value="Retrieval">Retrieval</option>
-                  </select>
+                  <StyledSelect
+                    value={formData.type}
+                    onChange={(val) => setFormData({...formData, type: val as any})}
+                    options={[
+                      { value: 'Function', label: 'Function' },
+                      { value: 'Integration', label: 'Integration' },
+                      { value: 'Retrieval', label: 'Retrieval' }
+                    ]}
+                    placeholder="Select hook type..."
+                  />
               </div>
               <div className="pt-4 flex justify-end gap-3">
                   <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>

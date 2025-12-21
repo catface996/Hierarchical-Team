@@ -710,7 +710,7 @@ const App: React.FC = () => {
                 </button>
              </div>
              <div className="flex-1 overflow-hidden">
-                {discoverySubView === 'connectors' ? <DiscoveryManagement sources={discoverySources} onAdd={(s) => setDiscoverySources(p => [...p, s])} onDelete={(id) => setDiscoverySources(p => p.filter(x => x.id !== id))} onScan={handleScan} /> : <DiscoveryInbox discoveredNodes={discoveredDelta.nodes} discoveredLinks={discoveredDelta.links} onApproveNode={handleApproveNode} onRejectNode={(id) => setDiscoveredDelta(p => ({...p, nodes: p.nodes.filter(n => n.id !== id)}))} onClear={() => setDiscoveredDelta({nodes: [], links: []})} />}
+                {discoverySubView === 'connectors' ? <DiscoveryManagement sources={discoverySources} agents={[globalAgent, ...teams.flatMap(t => [t.supervisor, ...t.members])]} onAdd={(s) => setDiscoverySources(p => [...p, s])} onUpdate={(s) => setDiscoverySources(p => p.map(x => x.id === s.id ? s : x))} onDelete={(id) => setDiscoverySources(p => p.filter(x => x.id !== id))} onScan={handleScan} /> : <DiscoveryInbox discoveredNodes={discoveredDelta.nodes} discoveredLinks={discoveredDelta.links} onApproveNode={handleApproveNode} onRejectNode={(id) => setDiscoveredDelta(p => ({...p, nodes: p.nodes.filter(n => n.id !== id)}))} onClear={() => setDiscoveredDelta({nodes: [], links: []})} />}
              </div>
           </div>
         );
