@@ -439,17 +439,19 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
               </div>
             )}
 
-            <div className="relative flex items-end gap-2">
+            <div className="flex items-start gap-2">
               <div className="relative flex-1">
-                <button
-                  onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors ${isAttachmentMenuOpen ? 'text-cyan-400 bg-cyan-900/30' : 'text-slate-500 hover:text-slate-300'}`}
-                  title="Attach Context"
-                >
-                  <Paperclip size={18} />
-                </button>
-                
-                <textarea 
+                <div className="absolute left-3 top-0 bottom-0 flex items-center z-10">
+                  <button
+                    onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
+                    className={`p-1 rounded-md transition-colors ${isAttachmentMenuOpen ? 'text-cyan-400 bg-cyan-900/30' : 'text-slate-500 hover:text-slate-300'}`}
+                    title="Attach Context"
+                  >
+                    <Paperclip size={18} />
+                  </button>
+                </div>
+
+                <textarea
                   ref={textareaRef}
                   rows={1}
                   value={input}
