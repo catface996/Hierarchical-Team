@@ -60,6 +60,7 @@ import DiscoveryInbox from './components/DiscoveryInbox';
 import ScannerView from './components/ScannerView';
 import AuthPage, { UserInfo } from './components/AuthPage';
 import { SettingsModal, AppSettings } from './components/SettingsModal';
+import GlobalChat from './components/GlobalChat';
 import { Activity, Database, Network, FileText, LogOut, Settings, Play, Square, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
 
 // 本地存储的键名
@@ -72,6 +73,12 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>({ language: 'en', theme: 'dark' });
+
+  // Check if standalone chat mode is requested via URL parameter
+  const isStandaloneChatMode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('view') === 'chat';
+  }, []);
 
   // 初始化时检查本地缓存的登录状态
   useEffect(() => {
@@ -756,6 +763,11 @@ const App: React.FC = () => {
       return <AuthPage onLogin={handleLogin} />;
   }
 
+  // Render standalone chat mode if requested via URL parameter
+  if (isStandaloneChatMode) {
+    return <GlobalChat nodes={topology.nodes} groups={topologyGroups} teams={teams} isStandalone={true} />;
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans">
       <header className="h-14 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0 z-50">
@@ -799,14 +811,16 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-hidden relative">{renderMainContent()}</main>
       {isSettingsOpen && <SettingsModal settings={appSettings} onClose={() => setIsSettingsOpen(false)} onSave={(s) => { setAppSettings(s); setIsSettingsOpen(false); }} />}
       {isGeneratingReport && diagnosisScope && (
-          <ReportGenerationModal 
-            topology={diagnosisScope} 
-            logs={logs} 
+          <ReportGenerationModal
+            topology={diagnosisScope}
+            logs={logs}
             query={userQuery}
-            onClose={() => setIsGeneratingReport(false)} 
-            onSave={handleCreateFinalReport} 
+            onClose={() => setIsGeneratingReport(false)}
+            onSave={handleCreateFinalReport}
           />
       )}
+      {/* Global Chatbot - appears on all pages */}
+      <GlobalChat nodes={topology.nodes} groups={topologyGroups} teams={teams} />
     </div>
   );
 };

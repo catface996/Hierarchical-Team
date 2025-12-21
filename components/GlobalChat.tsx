@@ -33,11 +33,35 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
     // 尝试从本地存储恢复历史记录
     const saved = localStorage.getItem('entropy_chat_history');
     return saved ? JSON.parse(saved) : [
-      { 
-        id: 'welcome', 
-        role: 'assistant', 
-        content: 'Hello! I am the EntropyOps Orchestrator. How can I assist you with your infrastructure today? You can attach specific resources or topologies to our conversation for deeper analysis.', 
-        timestamp: Date.now() 
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: 'Hello! I am the EntropyOps Orchestrator. How can I assist you with your infrastructure today? You can attach specific resources or topologies to our conversation for deeper analysis.',
+        timestamp: Date.now() - 300000
+      },
+      {
+        id: 'user-1',
+        role: 'user',
+        content: 'Can you analyze the Payment Processing Flow topology?',
+        timestamp: Date.now() - 240000
+      },
+      {
+        id: 'assistant-1',
+        role: 'assistant',
+        content: '**Payment Processing Flow Analysis**\n\nI\'ve analyzed the topology and found the following:\n\n- **API Gateway**: Healthy, handling 10k requests/sec\n- **Payment Service**: 5 replicas running v2.0.1\n- **Order Database**: PostgreSQL with 500GB storage\n\nNo critical issues detected. The system is operating within normal parameters.',
+        timestamp: Date.now() - 180000
+      },
+      {
+        id: 'user-2',
+        role: 'user',
+        content: 'What about latency issues?',
+        timestamp: Date.now() - 120000
+      },
+      {
+        id: 'assistant-2',
+        role: 'assistant',
+        content: 'Current latency metrics show:\n\n| Service | P50 | P99 |\n|---------|-----|-----|\n| Gateway | 12ms | 45ms |\n| Payment | 28ms | 120ms |\n| Database | 8ms | 35ms |\n\nAll values are within acceptable thresholds. However, I recommend monitoring the Payment Service P99 latency as it approaches the 150ms warning threshold.',
+        timestamp: Date.now() - 60000
       }
     ];
   });
@@ -133,6 +157,7 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
     const url = new URL(window.location.href);
     url.searchParams.set('view', 'chat');
     window.open(url.toString(), '_blank');
+    setIsOpen(false); // 自动收起原页面的对话框
   };
 
   const clearHistory = () => {
@@ -195,11 +220,11 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
                         <div className={`p-3 rounded-xl shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300'}`}>
                           {msg.role === 'user' ? <User size={20} /> : <Bot size={20} />}
                         </div>
-                        <div className={`p-5 rounded-2xl text-base leading-relaxed ${
+                        <div className={`px-4 py-3 rounded-2xl text-base leading-normal ${
                           msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700 shadow-md'
                         }`}>
                           {msg.attachments && msg.attachments.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
+                            <div className="flex flex-wrap gap-2 mb-2">
                               {msg.attachments.map(att => (
                                 <span key={att.id} className="text-xs px-2 py-1 rounded bg-black/30 border border-white/10 flex items-center gap-1.5">
                                   {att.type === 'Resource' ? <Database size={10} /> : <Network size={10} />}
@@ -208,7 +233,7 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
                               ))}
                             </div>
                           )}
-                          <div className="prose prose-invert max-w-none">
+                          <div className="prose prose-invert max-w-none prose-p:my-1 prose-p:leading-normal [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
                             <ReactMarkdown>{msg.content}</ReactMarkdown>
                           </div>
                         </div>
@@ -242,23 +267,23 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
                         ))}
                       </div>
                     )}
-                    <div className="relative flex items-end gap-4">
+                    <div className="relative flex items-stretch gap-4">
                       <div className="relative flex-1">
-                        <button 
+                        <button
                           onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
-                          className={`absolute left-4 bottom-3 p-2 rounded-lg transition-colors ${isAttachmentMenuOpen ? 'text-cyan-400 bg-cyan-900/30' : 'text-slate-500 hover:text-slate-300'}`}
+                          className={`absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-colors ${isAttachmentMenuOpen ? 'text-cyan-400 bg-cyan-900/30' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                           <Paperclip size={24} />
                         </button>
-                        <textarea 
+                        <textarea
                           ref={textareaRef}
-                          rows={2}
+                          rows={1}
                           value={input}
                           onChange={e => { setInput(e.target.value); handleInputInteraction(); }}
                           onFocus={handleInputInteraction}
                           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
                           placeholder="Type your technical inquiry here... (Enter to send, Shift+Enter for new line)"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-16 pr-6 text-base text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-none shadow-2xl"
+                          className="w-full h-14 bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-16 pr-6 text-base text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-none shadow-2xl"
                         />
                         {/* Standalone Attachment Menu */}
                         {isAttachmentMenuOpen && (
@@ -308,10 +333,10 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
                           </div>
                         )}
                       </div>
-                      <button 
+                      <button
                         onClick={handleSend}
                         disabled={!input.trim() && attachments.length === 0}
-                        className="p-4 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl transition-all shadow-xl shadow-cyan-900/20"
+                        className="h-14 px-6 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl transition-all shadow-xl shadow-cyan-900/20 flex items-center justify-center"
                       >
                         <Send size={24} />
                       </button>

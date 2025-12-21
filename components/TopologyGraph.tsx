@@ -795,7 +795,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({ data, activeNodeIds, onNo
         .attr("text-anchor", "end")
         .attr("dominant-baseline", "middle")
         .attr("fill", config.borderColor.replace('0.3', '0.95'))
-        .attr("font-size", "12px")
+        .attr("font-size", "16px")
         .attr("font-weight", "700")
         .attr("letter-spacing", "0.5px")
         .text(config.label);
