@@ -646,9 +646,46 @@ const App: React.FC = () => {
         return <ResourceManagement nodes={topology.nodes} onAdd={(n) => setTopology(prev => ({...prev, nodes: [...prev.nodes, n]}))} onUpdate={(n) => setTopology(prev => ({...prev, nodes: prev.nodes.map(x => x.id === n.id ? n : x)}))} onDelete={(id) => setTopology(prev => ({...prev, nodes: prev.nodes.filter(x => x.id !== id)}))} onViewDetail={(n) => { setSelectedResourceId(n.id); setCurrentView('resource-detail'); }} />;
       case 'resource-detail':
         const rNode = topology.nodes.find(n => n.id === selectedResourceId);
-        return rNode ? <ResourceDetailView node={rNode} team={teams.find(t => t.resourceId === rNode.id)} associatedTopologyGroups={topologyGroups.filter(tg => tg.nodeIds.includes(rNode.id))} onBack={() => setCurrentView('resources')} onNavigateToTopology={(id) => { setSelectedTopologyId(id); setCurrentView('topology-detail'); }} onUpdateNode={(n) => setTopology(prev => ({...prev, nodes: prev.nodes.map(x => x.id === n.id ? n : x)}))} onUpdateAgentConfig={() => {}} onAddWorker={() => {}} onRemoveWorker={() => {}} /> : null;
+        const handleAddWorker = (teamId: string, workerTemplate: { name: string, specialty: string }) => {
+          const newWorker: Agent = {
+            id: `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: workerTemplate.name,
+            role: AgentRole.WORKER,
+            specialty: workerTemplate.specialty,
+            status: AgentStatus.IDLE,
+            findings: { warnings: 0, critical: 0 },
+            config: {
+              model: 'gemini-2.0-flash',
+              temperature: 0.3,
+              systemInstruction: `You are a specialized ${workerTemplate.specialty} worker agent.`
+            }
+          };
+          setTeams(prev => prev.map(t =>
+            t.id === teamId ? { ...t, members: [...t.members, newWorker] } : t
+          ));
+        };
+        const handleRemoveWorker = (teamId: string, agentId: string) => {
+          setTeams(prev => prev.map(t =>
+            t.id === teamId ? { ...t, members: t.members.filter(m => m.id !== agentId) } : t
+          ));
+        };
+        return rNode ? <ResourceDetailView node={rNode} team={teams.find(t => t.resourceId === rNode.id)} associatedTopologyGroups={topologyGroups.filter(tg => tg.nodeIds.includes(rNode.id))} onBack={() => setCurrentView('resources')} onNavigateToTopology={(id) => { setSelectedTopologyId(id); setCurrentView('topology-detail'); }} onUpdateNode={(n) => setTopology(prev => ({...prev, nodes: prev.nodes.map(x => x.id === n.id ? n : x)}))} onUpdateAgentConfig={() => {}} onAddWorker={handleAddWorker} onRemoveWorker={handleRemoveWorker} /> : null;
       case 'agents':
-        return <AgentManagement teams={teams} onUpdateAgentConfig={() => {}} onDeleteAgent={() => {}} onManagePrompts={() => setCurrentView('prompts')} onManageModels={() => setCurrentView('models')} onManageTools={() => setCurrentView('tools')} />;
+        const handleDeleteAgent = (teamId: string, agentId: string) => {
+          setTeams(prev => prev.map(t =>
+            t.id === teamId ? { ...t, members: t.members.filter(m => m.id !== agentId) } : t
+          ));
+        };
+        const handleUpdateAgentConfig = (teamId: string, agentId: string, config: AgentConfig) => {
+          setTeams(prev => prev.map(t => {
+            if (t.id !== teamId) return t;
+            if (t.supervisor.id === agentId) {
+              return { ...t, supervisor: { ...t.supervisor, config } };
+            }
+            return { ...t, members: t.members.map(m => m.id === agentId ? { ...m, config } : m) };
+          }));
+        };
+        return <AgentManagement teams={teams} onUpdateAgentConfig={handleUpdateAgentConfig} onDeleteAgent={handleDeleteAgent} onManagePrompts={() => setCurrentView('prompts')} onManageModels={() => setCurrentView('models')} onManageTools={() => setCurrentView('tools')} />;
       case 'prompts':
         return <PromptManagement prompts={INITIAL_PROMPT_TEMPLATES} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => setCurrentView('agents')} />;
       case 'models':
