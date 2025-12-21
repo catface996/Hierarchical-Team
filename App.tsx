@@ -48,6 +48,7 @@ import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
+import AuthPage from './components/AuthPage';
 import { SettingsModal, AppSettings } from './components/SettingsModal';
 import { Activity, Database, Network, FileText, LogOut, Settings, Play, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
 
@@ -285,6 +286,10 @@ const App: React.FC = () => {
     }
   };
 
+  if (!isAuthenticated) {
+      return <AuthPage onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans">
       <header className="h-14 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0 z-50">
@@ -314,7 +319,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
             <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-slate-400 hover:text-white transition-colors"><Settings size={18} /></button>
-            <button onClick={() => {}} className="p-2 text-slate-400 hover:text-red-400 transition-colors"><LogOut size={18} /></button>
+            <button onClick={() => setIsAuthenticated(false)} className="p-2 text-slate-400 hover:text-red-400 transition-colors"><LogOut size={18} /></button>
         </div>
       </header>
       <main className="flex-1 overflow-hidden relative">{renderMainContent()}</main>
