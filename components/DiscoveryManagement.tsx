@@ -87,9 +87,9 @@ const DiscoveryManagement: React.FC<DiscoveryManagementProps> = ({ sources, onAd
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs uppercase tracking-widest"
+          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest"
         >
-          <Plus size={14} /> Add Connector
+          <Plus size={14} /> Add connector
         </button>
       </div>
 
@@ -178,7 +178,7 @@ const DiscoveryManagement: React.FC<DiscoveryManagementProps> = ({ sources, onAd
                         onClick={() => onScan(source.id)}
                         className="px-2.5 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1.5 bg-cyan-600/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-600/20"
                       >
-                        <Zap size={12} /> SCAN NOW
+                        <Zap size={12} /> Scan now
                       </button>
                     </div>
                   </div>
@@ -257,7 +257,7 @@ const DiscoveryManagement: React.FC<DiscoveryManagementProps> = ({ sources, onAd
       <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
         <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Connector Segment</span>
+          <span className="text-[10px] font-bold text-slate-500 tracking-widest">Connector segment</span>
           <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
           <span className="text-[10px] text-slate-500 font-bold">/</span>
           <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -296,7 +296,7 @@ const DiscoveryManagement: React.FC<DiscoveryManagementProps> = ({ sources, onAd
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white text-xs font-bold">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-900/20">
+                <button type="submit" className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-900/20">
                   <Save size={14} /> Register
                 </button>
               </div>

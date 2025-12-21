@@ -170,7 +170,7 @@ sequenceDiagram
 - [ ] Task 1
 - [ ] Task 2`,
     tags: ['Forensics', 'PostMortem'],
-    updatedAt: Date.now()
+    updatedAt: Date.now() - 86400000 * 2
   },
   {
     id: 'rtp-02',
@@ -196,7 +196,518 @@ sequenceDiagram
 - **Recommendation 1**: {{Proposal_1}}
 - **Recommendation 2**: {{Proposal_2}}`,
     tags: ['Optimization', 'Benchmark'],
-    updatedAt: Date.now()
+    updatedAt: Date.now() - 86400000 * 5
+  },
+  {
+    id: 'rtp-03',
+    name: 'Security Vulnerability Assessment',
+    description: 'Comprehensive security scan results with CVE tracking and remediation guidance.',
+    category: 'Security',
+    content: `# Security Assessment: {{Target_System}}
+
+## 1. Executive Summary
+- **Scan Date**: {{Scan_Date}}
+- **Total Vulnerabilities**: {{Total_Count}}
+- **Critical/High**: {{Critical_Count}}
+
+## 2. Vulnerability Distribution
+\`\`\`json
+{
+  "type": "pie",
+  "dataKey": "count",
+  "nameKey": "severity",
+  "data": [
+    {"severity": "Critical", "count": 3, "color": "#ef4444"},
+    {"severity": "High", "count": 12, "color": "#f97316"},
+    {"severity": "Medium", "count": 28, "color": "#eab308"},
+    {"severity": "Low", "count": 45, "color": "#22c55e"}
+  ]
+}
+\`\`\`
+
+## 3. Top Findings
+| CVE ID | Severity | Component | Status |
+| :--- | :--- | :--- | :--- |
+| {{CVE_1}} | Critical | {{Component_1}} | Open |
+| {{CVE_2}} | High | {{Component_2}} | Mitigated |
+
+## 4. Remediation Timeline
+\`\`\`mermaid
+gantt
+    title Remediation Schedule
+    dateFormat  YYYY-MM-DD
+    section Critical
+    CVE-2024-001 :crit, 2024-01-15, 3d
+    section High
+    CVE-2024-002 :2024-01-18, 5d
+\`\`\``,
+    tags: ['CVE', 'Vulnerability', 'Compliance'],
+    updatedAt: Date.now() - 86400000 * 1
+  },
+  {
+    id: 'rtp-04',
+    name: 'Compliance Audit Report',
+    description: 'Regulatory compliance verification for SOC2, GDPR, and HIPAA requirements.',
+    category: 'Audit',
+    content: `# Compliance Audit: {{Framework}}
+
+## 1. Audit Scope
+- **Framework**: {{Framework}}
+- **Period**: {{Audit_Period}}
+- **Auditor**: {{Auditor_Name}}
+
+## 2. Compliance Score
+\`\`\`json
+{
+  "type": "bar",
+  "xKey": "control",
+  "series": [{"key": "score", "color": "#06b6d4"}],
+  "data": [
+    {"control": "Access Control", "score": 95},
+    {"control": "Data Protection", "score": 88},
+    {"control": "Audit Logging", "score": 92},
+    {"control": "Incident Response", "score": 85}
+  ]
+}
+\`\`\`
+
+## 3. Control Assessment
+| Control ID | Description | Status | Evidence |
+| :--- | :--- | :--- | :--- |
+| CC6.1 | Logical Access | ✅ Pass | {{Evidence_1}} |
+| CC7.2 | System Operations | ⚠️ Partial | {{Evidence_2}} |
+
+## 4. Recommendations
+- [ ] {{Recommendation_1}}
+- [ ] {{Recommendation_2}}`,
+    tags: ['SOC2', 'GDPR', 'Compliance'],
+    updatedAt: Date.now() - 86400000 * 3
+  },
+  {
+    id: 'rtp-05',
+    name: 'Incident Response Playbook',
+    description: 'Step-by-step incident handling procedures with escalation matrix.',
+    category: 'Incident',
+    content: `# Incident Response: {{Incident_Type}}
+
+## 1. Classification
+- **Severity**: {{Severity_Level}}
+- **Category**: {{Category}}
+- **SLA**: {{Response_SLA}}
+
+## 2. Response Flow
+\`\`\`mermaid
+flowchart TD
+    A[Incident Detected] --> B{Severity?}
+    B -->|Critical| C[Page On-Call]
+    B -->|High| D[Notify Team Lead]
+    B -->|Medium/Low| E[Create Ticket]
+    C --> F[War Room]
+    D --> F
+    F --> G[Root Cause Analysis]
+    G --> H[Remediation]
+    H --> I[Post-Mortem]
+\`\`\`
+
+## 3. Escalation Matrix
+| Level | Contact | Response Time |
+| :--- | :--- | :--- |
+| L1 | {{L1_Contact}} | 15 min |
+| L2 | {{L2_Contact}} | 30 min |
+| L3 | {{L3_Contact}} | 1 hour |
+
+## 4. Checklist
+- [ ] Acknowledge incident
+- [ ] Assess impact scope
+- [ ] Engage stakeholders
+- [ ] Document timeline`,
+    tags: ['Playbook', 'Escalation', 'SLA'],
+    updatedAt: Date.now() - 86400000 * 7
+  },
+  {
+    id: 'rtp-06',
+    name: 'Capacity Planning Report',
+    description: 'Resource utilization trends and scaling recommendations.',
+    category: 'Performance',
+    content: `# Capacity Planning: {{Service_Cluster}}
+
+## 1. Current Utilization
+\`\`\`json
+{
+  "type": "line",
+  "xKey": "week",
+  "series": [
+    {"key": "cpu_avg", "color": "#f59e0b", "name": "CPU"},
+    {"key": "mem_avg", "color": "#8b5cf6", "name": "Memory"},
+    {"key": "disk_avg", "color": "#10b981", "name": "Disk"}
+  ],
+  "data": [
+    {"week": "W1", "cpu_avg": 45, "mem_avg": 62, "disk_avg": 38},
+    {"week": "W2", "cpu_avg": 52, "mem_avg": 65, "disk_avg": 41},
+    {"week": "W3", "cpu_avg": 58, "mem_avg": 71, "disk_avg": 45},
+    {"week": "W4", "cpu_avg": 67, "mem_avg": 78, "disk_avg": 52}
+  ]
+}
+\`\`\`
+
+## 2. Growth Projection
+| Resource | Current | 30-Day | 90-Day | Threshold |
+| :--- | :--- | :--- | :--- | :--- |
+| CPU | {{CPU_Current}}% | {{CPU_30d}}% | {{CPU_90d}}% | 80% |
+| Memory | {{Mem_Current}}% | {{Mem_30d}}% | {{Mem_90d}}% | 85% |
+
+## 3. Scaling Recommendations
+- **Immediate**: {{Immediate_Action}}
+- **Short-term**: {{Short_Term_Action}}
+- **Long-term**: {{Long_Term_Action}}`,
+    tags: ['Capacity', 'Scaling', 'Forecast'],
+    updatedAt: Date.now() - 86400000 * 4
+  },
+  {
+    id: 'rtp-07',
+    name: 'API Health Check Report',
+    description: 'Endpoint availability, latency percentiles, and error rate analysis.',
+    category: 'Performance',
+    content: `# API Health: {{API_Name}}
+
+## 1. Availability Summary
+- **Uptime**: {{Uptime_Percentage}}%
+- **Total Requests**: {{Total_Requests}}
+- **Error Rate**: {{Error_Rate}}%
+
+## 2. Latency Distribution
+\`\`\`json
+{
+  "type": "bar",
+  "xKey": "endpoint",
+  "series": [
+    {"key": "p50", "color": "#22c55e", "name": "P50"},
+    {"key": "p95", "color": "#f59e0b", "name": "P95"},
+    {"key": "p99", "color": "#ef4444", "name": "P99"}
+  ],
+  "data": [
+    {"endpoint": "/users", "p50": 45, "p95": 120, "p99": 250},
+    {"endpoint": "/orders", "p50": 78, "p95": 180, "p99": 420},
+    {"endpoint": "/products", "p50": 32, "p95": 85, "p99": 150}
+  ]
+}
+\`\`\`
+
+## 3. Error Breakdown
+| Status Code | Count | Percentage | Trend |
+| :--- | :--- | :--- | :--- |
+| 4xx | {{4xx_Count}} | {{4xx_Pct}}% | {{4xx_Trend}} |
+| 5xx | {{5xx_Count}} | {{5xx_Pct}}% | {{5xx_Trend}} |
+
+## 4. Recommendations
+- {{Recommendation_1}}
+- {{Recommendation_2}}`,
+    tags: ['API', 'Latency', 'SLO'],
+    updatedAt: Date.now() - 86400000 * 6
+  },
+  {
+    id: 'rtp-08',
+    name: 'Database Health Assessment',
+    description: 'Query performance, connection pool metrics, and index optimization.',
+    category: 'Audit',
+    content: `# Database Assessment: {{DB_Instance}}
+
+## 1. Connection Metrics
+- **Active Connections**: {{Active_Conn}}
+- **Pool Utilization**: {{Pool_Util}}%
+- **Wait Events**: {{Wait_Events}}
+
+## 2. Query Performance
+\`\`\`json
+{
+  "type": "area",
+  "xKey": "time",
+  "series": [
+    {"key": "queries", "color": "#06b6d4", "name": "Queries/sec"},
+    {"key": "slow_queries", "color": "#ef4444", "name": "Slow Queries"}
+  ],
+  "data": [
+    {"time": "00:00", "queries": 1200, "slow_queries": 5},
+    {"time": "06:00", "queries": 800, "slow_queries": 2},
+    {"time": "12:00", "queries": 3500, "slow_queries": 45},
+    {"time": "18:00", "queries": 2800, "slow_queries": 28}
+  ]
+}
+\`\`\`
+
+## 3. Top Slow Queries
+| Query Hash | Avg Time | Calls | Impact |
+| :--- | :--- | :--- | :--- |
+| {{Hash_1}} | {{Time_1}}ms | {{Calls_1}} | High |
+| {{Hash_2}} | {{Time_2}}ms | {{Calls_2}} | Medium |
+
+## 4. Index Recommendations
+- [ ] Create index on {{Table_1}}.{{Column_1}}
+- [ ] Rebuild index {{Index_Name}}`,
+    tags: ['Database', 'Query', 'Index'],
+    updatedAt: Date.now() - 86400000 * 8
+  },
+  {
+    id: 'rtp-09',
+    name: 'Network Security Posture',
+    description: 'Firewall rules audit, network segmentation verification, and traffic analysis.',
+    category: 'Security',
+    content: `# Network Security: {{Network_Zone}}
+
+## 1. Firewall Summary
+- **Total Rules**: {{Total_Rules}}
+- **Redundant Rules**: {{Redundant_Rules}}
+- **Shadow Rules**: {{Shadow_Rules}}
+
+## 2. Traffic Flow
+\`\`\`mermaid
+flowchart LR
+    subgraph Public
+        A[Internet]
+    end
+    subgraph DMZ
+        B[WAF]
+        C[Load Balancer]
+    end
+    subgraph Private
+        D[App Servers]
+        E[Database]
+    end
+    A -->|HTTPS| B
+    B --> C
+    C --> D
+    D -->|TCP 5432| E
+\`\`\`
+
+## 3. Rule Analysis
+| Rule ID | Source | Destination | Action | Risk |
+| :--- | :--- | :--- | :--- | :--- |
+| {{Rule_1}} | Any | {{Dest_1}} | Allow | ⚠️ High |
+| {{Rule_2}} | {{Src_2}} | {{Dest_2}} | Allow | ✅ Low |
+
+## 4. Remediation
+- [ ] Remove overly permissive rule {{Rule_ID}}
+- [ ] Implement micro-segmentation`,
+    tags: ['Firewall', 'Network', 'Segmentation'],
+    updatedAt: Date.now() - 86400000 * 10
+  },
+  {
+    id: 'rtp-10',
+    name: 'Cost Optimization Analysis',
+    description: 'Cloud resource cost breakdown with savings opportunities.',
+    category: 'Audit',
+    content: `# Cost Analysis: {{Cloud_Account}}
+
+## 1. Spend Overview
+- **Monthly Cost**: \${{Monthly_Cost}}
+- **MoM Change**: {{MoM_Change}}%
+- **Forecast**: \${{Forecast_Cost}}
+
+## 2. Cost by Service
+\`\`\`json
+{
+  "type": "pie",
+  "dataKey": "cost",
+  "nameKey": "service",
+  "data": [
+    {"service": "Compute", "cost": 45000, "color": "#f59e0b"},
+    {"service": "Storage", "cost": 18000, "color": "#8b5cf6"},
+    {"service": "Network", "cost": 12000, "color": "#06b6d4"},
+    {"service": "Database", "cost": 25000, "color": "#10b981"}
+  ]
+}
+\`\`\`
+
+## 3. Optimization Opportunities
+| Category | Current | Optimized | Savings |
+| :--- | :--- | :--- | :--- |
+| Reserved Instances | \${{RI_Current}} | \${{RI_Opt}} | \${{RI_Save}} |
+| Idle Resources | \${{Idle_Current}} | \$0 | \${{Idle_Save}} |
+| Right-sizing | \${{RS_Current}} | \${{RS_Opt}} | \${{RS_Save}} |
+
+## 4. Action Items
+- [ ] Purchase reserved capacity for {{Service_1}}
+- [ ] Terminate idle instances: {{Instance_List}}
+- [ ] Resize over-provisioned {{Resource_Type}}`,
+    tags: ['FinOps', 'Cost', 'Optimization'],
+    updatedAt: Date.now() - 86400000 * 12
+  },
+  {
+    id: 'rtp-11',
+    name: 'Change Impact Assessment',
+    description: 'Pre-deployment risk analysis and rollback procedures.',
+    category: 'Incident',
+    content: `# Change Assessment: {{Change_ID}}
+
+## 1. Change Summary
+- **Type**: {{Change_Type}}
+- **Risk Level**: {{Risk_Level}}
+- **Affected Systems**: {{Affected_Count}}
+
+## 2. Impact Analysis
+\`\`\`mermaid
+flowchart TD
+    A[{{Change_Component}}] --> B[Service A]
+    A --> C[Service B]
+    B --> D[Database]
+    C --> D
+    B --> E[Cache]
+    style A fill:#f59e0b
+    style B fill:#fef3c7
+    style C fill:#fef3c7
+\`\`\`
+
+## 3. Risk Matrix
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| {{Risk_1}} | Medium | High | {{Mit_1}} |
+| {{Risk_2}} | Low | Medium | {{Mit_2}} |
+
+## 4. Rollback Plan
+1. Revert deployment: \`{{Rollback_Cmd}}\`
+2. Restore database snapshot: {{Snapshot_ID}}
+3. Notify stakeholders
+
+## 5. Approval
+- [ ] Tech Lead: {{Tech_Lead}}
+- [ ] Change Board: {{CAB_Status}}`,
+    tags: ['Change', 'Risk', 'Rollback'],
+    updatedAt: Date.now() - 86400000 * 14
+  },
+  {
+    id: 'rtp-12',
+    name: 'SLO Compliance Report',
+    description: 'Service level objective tracking with error budget analysis.',
+    category: 'Performance',
+    content: `# SLO Report: {{Service_Name}}
+
+## 1. SLO Summary
+| Objective | Target | Actual | Status |
+| :--- | :--- | :--- | :--- |
+| Availability | 99.9% | {{Avail_Actual}}% | {{Avail_Status}} |
+| Latency P99 | <500ms | {{Lat_Actual}}ms | {{Lat_Status}} |
+| Error Rate | <0.1% | {{Err_Actual}}% | {{Err_Status}} |
+
+## 2. Error Budget
+\`\`\`json
+{
+  "type": "line",
+  "xKey": "day",
+  "series": [
+    {"key": "budget_remaining", "color": "#22c55e", "name": "Budget Remaining"},
+    {"key": "budget_consumed", "color": "#ef4444", "name": "Budget Consumed"}
+  ],
+  "data": [
+    {"day": "1", "budget_remaining": 100, "budget_consumed": 0},
+    {"day": "7", "budget_remaining": 85, "budget_consumed": 15},
+    {"day": "14", "budget_remaining": 62, "budget_consumed": 38},
+    {"day": "21", "budget_remaining": 45, "budget_consumed": 55},
+    {"day": "28", "budget_remaining": 28, "budget_consumed": 72}
+  ]
+}
+\`\`\`
+
+## 3. Burn Rate
+- **Current**: {{Burn_Rate}}x
+- **Alert Threshold**: 2x
+- **Days Until Exhaustion**: {{Days_Left}}
+
+## 4. Incidents Impacting SLO
+| Date | Duration | Impact | Root Cause |
+| :--- | :--- | :--- | :--- |
+| {{Date_1}} | {{Dur_1}} | {{Impact_1}}% | {{Cause_1}} |
+| {{Date_2}} | {{Dur_2}} | {{Impact_2}}% | {{Cause_2}} |`,
+    tags: ['SLO', 'SLA', 'ErrorBudget'],
+    updatedAt: Date.now() - 86400000 * 9
+  },
+  {
+    id: 'rtp-13',
+    name: 'Dependency Vulnerability Scan',
+    description: 'Third-party library security analysis with upgrade recommendations.',
+    category: 'Security',
+    content: `# Dependency Scan: {{Project_Name}}
+
+## 1. Scan Overview
+- **Total Dependencies**: {{Total_Deps}}
+- **Vulnerable**: {{Vuln_Count}}
+- **Outdated**: {{Outdated_Count}}
+
+## 2. Severity Breakdown
+\`\`\`json
+{
+  "type": "bar",
+  "xKey": "category",
+  "series": [{"key": "count", "color": "#ef4444"}],
+  "data": [
+    {"category": "Critical", "count": 2},
+    {"category": "High", "count": 8},
+    {"category": "Medium", "count": 15},
+    {"category": "Low", "count": 23}
+  ]
+}
+\`\`\`
+
+## 3. Top Vulnerabilities
+| Package | Version | CVE | Fix Version |
+| :--- | :--- | :--- | :--- |
+| {{Pkg_1}} | {{Ver_1}} | {{CVE_1}} | {{Fix_1}} |
+| {{Pkg_2}} | {{Ver_2}} | {{CVE_2}} | {{Fix_2}} |
+| {{Pkg_3}} | {{Ver_3}} | {{CVE_3}} | {{Fix_3}} |
+
+## 4. Upgrade Commands
+\`\`\`bash
+npm update {{Pkg_1}}@{{Fix_1}}
+npm update {{Pkg_2}}@{{Fix_2}}
+\`\`\``,
+    tags: ['Dependencies', 'NPM', 'CVE'],
+    updatedAt: Date.now() - 86400000 * 11
+  },
+  {
+    id: 'rtp-14',
+    name: 'Disaster Recovery Test Report',
+    description: 'DR drill results with RTO/RPO measurements and gap analysis.',
+    category: 'Audit',
+    content: `# DR Test Report: {{DR_Scenario}}
+
+## 1. Test Summary
+- **Date**: {{Test_Date}}
+- **Scenario**: {{Scenario_Type}}
+- **Result**: {{Overall_Result}}
+
+## 2. Recovery Metrics
+| Metric | Target | Actual | Status |
+| :--- | :--- | :--- | :--- |
+| RTO | {{RTO_Target}} | {{RTO_Actual}} | {{RTO_Status}} |
+| RPO | {{RPO_Target}} | {{RPO_Actual}} | {{RPO_Status}} |
+| Data Integrity | 100% | {{Data_Integrity}}% | {{DI_Status}} |
+
+## 3. Recovery Timeline
+\`\`\`mermaid
+gantt
+    title Recovery Timeline
+    dateFormat HH:mm
+    section Infrastructure
+    Network Restore :done, 09:00, 15m
+    Compute Restore :done, 09:15, 30m
+    section Data
+    Database Restore :done, 09:45, 45m
+    Cache Warm-up :done, 10:30, 20m
+    section Validation
+    Health Checks :done, 10:50, 10m
+    Traffic Switch :done, 11:00, 5m
+\`\`\`
+
+## 4. Issues Found
+| Issue | Severity | Resolution |
+| :--- | :--- | :--- |
+| {{Issue_1}} | High | {{Resolution_1}} |
+| {{Issue_2}} | Medium | {{Resolution_2}} |
+
+## 5. Recommendations
+- [ ] Update runbook for {{Runbook_Update}}
+- [ ] Automate {{Automation_Task}}`,
+    tags: ['DR', 'RTO', 'RPO', 'BCP'],
+    updatedAt: Date.now() - 86400000 * 15
   }
 ];
 

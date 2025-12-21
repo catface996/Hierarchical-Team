@@ -285,7 +285,7 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
       <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
         <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
         <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Registry Segment</span>
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">Registry segment</span>
             <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
             <span className="text-[10px] text-slate-500 font-bold">/</span>
             <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -308,7 +308,7 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
                 <p className="text-slate-400 text-sm mb-8 leading-relaxed">This action will purge the logical mapping of <span className="text-white font-black underline decoration-red-500/50">{tgToDelete.name}</span>. Associated resources will persist in the global registry.</p>
                 <div className="grid grid-cols-2 gap-3">
                     <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-bold transition-colors">Abort</button>
-                    <button onClick={confirmDelete} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-red-900/20">Confirm Delete</button>
+                    <button onClick={confirmDelete} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black tracking-widest shadow-lg shadow-red-900/20">Confirm delete</button>
                 </div>
             </div>
         </div>
@@ -476,7 +476,7 @@ const TopologyFormModal: React.FC<{
                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags</label>
                         <div className="flex gap-2 mb-2">
                             <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-cyan-500/50 outline-none" placeholder="Press enter to add..." />
-                            <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all uppercase tracking-widest">ADD</button>
+                            <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all tracking-widest">Add</button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {formData.tags?.map((tag, idx) => (
@@ -491,8 +491,8 @@ const TopologyFormModal: React.FC<{
             </form>
             <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end gap-3">
                 <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" onClick={(e) => { e.preventDefault(); onSave(formData); }} className="px-6 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-cyan-900/20 flex items-center gap-2 transition-all">
-                    <Save size={16} /> Commit Changes
+                <button type="submit" onClick={(e) => { e.preventDefault(); onSave(formData); }} className="px-6 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest shadow-lg shadow-cyan-900/20 flex items-center gap-2 transition-all">
+                    <Save size={16} /> Commit changes
                 </button>
             </div>
         </div>
@@ -543,7 +543,7 @@ const TopologyDetailModal: React.FC<{ tg: TopologyGroup, onClose: () => void }> 
                 )}
             </div>
             <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end">
-                <button onClick={onClose} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all">Close Segment</button>
+                <button onClick={onClose} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black tracking-widest rounded-lg transition-all">Close segment</button>
             </div>
         </div>
     </div>

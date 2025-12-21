@@ -76,8 +76,8 @@ const ToolManagement: React.FC<ToolManagementProps> = ({ tools, onAdd, onUpdate,
              <p className="text-slate-400 text-xs mt-1 font-medium">Extend agent capabilities with specialized functions and environmental hooks.</p>
            </div>
         </div>
-        <button onClick={() => { setEditingTool(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs uppercase tracking-widest">
-          <Plus size={14} /> Provision Tool
+        <button onClick={() => { setEditingTool(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest">
+          <Plus size={14} /> Provision tool
         </button>
       </div>
 
@@ -174,7 +174,7 @@ const ToolManagement: React.FC<ToolManagementProps> = ({ tools, onAdd, onUpdate,
       <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
           <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
           <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Utility Segment</span>
+              <span className="text-[10px] font-bold text-slate-500 tracking-widest">Utility segment</span>
               <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
               <span className="text-[10px] text-slate-500 font-bold">/</span>
               <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -215,7 +215,7 @@ const ToolFormModal: React.FC<{ tool: AgentTool | null, onClose: () => void, onS
               </div>
               <div className="pt-4 flex justify-end gap-3">
                   <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>
-                  <button type="submit" className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2"><Save size={16} /> Save Record</button>
+                  <button type="submit" className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2"><Save size={16} /> Save record</button>
               </div>
           </form>
         </div>

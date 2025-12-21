@@ -51,6 +51,7 @@ import ResourceDetailView from './components/ResourceDetailView';
 import AgentManagement from './components/AgentManagement';
 import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
+import ReportTemplateManagement from './components/ReportTemplateManagement';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
 import ScannerView from './components/ScannerView';
@@ -108,7 +109,7 @@ const App: React.FC = () => {
   }, []);
 
   // 核心视图切换
-  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'discovery' | 'scanner'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'diagnosis' | 'resources' | 'resource-detail' | 'topologies' | 'topology-detail' | 'agents' | 'reports' | 'report-detail' | 'report-templates' | 'discovery' | 'scanner'>('dashboard');
   const [discoverySubView, setDiscoverySubView] = useState<'connectors' | 'inbox'>('connectors');
 
   const [selectedTopologyId, setSelectedTopologyId] = useState<string | null>(null);
@@ -639,10 +640,12 @@ const App: React.FC = () => {
       case 'agents':
         return <AgentManagement teams={teams} onUpdateAgentConfig={() => {}} onDeleteAgent={() => {}} onManagePrompts={() => {}} onManageModels={() => {}} onManageTools={() => {}} />;
       case 'reports':
-        return <ReportManagement reports={reports} onViewReport={(r) => { setSelectedReportId(r.id); setCurrentView('report-detail'); }} onManageTemplates={() => {}} />;
+        return <ReportManagement reports={reports} onViewReport={(r) => { setSelectedReportId(r.id); setCurrentView('report-detail'); }} onManageTemplates={() => setCurrentView('report-templates')} />;
       case 'report-detail':
         const rRep = reports.find(r => r.id === selectedReportId);
         return rRep ? <ReportDetailView report={rRep} onBack={() => setCurrentView('reports')} /> : null;
+      case 'report-templates':
+        return <ReportTemplateManagement templates={INITIAL_REPORT_TEMPLATES} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => setCurrentView('reports')} />;
       case 'discovery':
         return (
           <div className="flex flex-col h-full bg-slate-950">
@@ -764,7 +767,7 @@ const App: React.FC = () => {
                     <button 
                         key={item.id}
                         onClick={() => setCurrentView(item.id as any)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${currentView === item.id || (item.id === 'topologies' && currentView === 'topology-detail') || (item.id === 'reports' && currentView === 'report-detail') ? 'bg-slate-800 text-cyan-400 shadow-inner' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${currentView === item.id || (item.id === 'topologies' && currentView === 'topology-detail') || (item.id === 'reports' && (currentView === 'report-detail' || currentView === 'report-templates')) ? 'bg-slate-800 text-cyan-400 shadow-inner' : 'text-slate-400 hover:text-slate-200'}`}
                     >
                         <item.icon size={14} /> {item.label}
                     </button>

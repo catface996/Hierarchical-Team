@@ -79,11 +79,11 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ nodes, onAdd, o
           </h2>
           <p className="text-slate-400 text-xs mt-1 font-medium">Manage and provision logical resource units across the cluster.</p>
         </div>
-        <button 
+        <button
           onClick={() => { setEditingNode(null); setIsModalOpen(true); }}
-          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs uppercase tracking-widest"
+          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest"
         >
-          <Plus size={14} /> Add Resource
+          <Plus size={14} /> Add resource
         </button>
       </div>
 
@@ -217,7 +217,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ nodes, onAdd, o
                                         <button onClick={(e) => { e.stopPropagation(); setNodeToDelete(node); setIsDeleteModalOpen(true); }} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-red-400 transition-all"><Trash2 size={15} /></button>
                                     </div>
                                     <button className="px-2.5 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5">
-                                        ANALYZE <ArrowUpRight size={12} />
+                                        Analyze <ArrowUpRight size={12} />
                                     </button>
                                 </div>
                             </div>
@@ -237,7 +237,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ nodes, onAdd, o
       <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
         <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
         <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Inventory Page</span>
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">Inventory segment</span>
             <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
             <span className="text-[10px] text-slate-500 font-bold">/</span>
             <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -258,7 +258,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ nodes, onAdd, o
             <p className="text-slate-400 text-sm mb-8 leading-relaxed">Are you sure you want to remove <span className="text-white font-black underline decoration-red-500/50">{nodeToDelete.label}</span>? This will disrupt any active topological flows.</p>
             <div className="grid grid-cols-2 gap-3">
                <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-bold transition-colors">Abort</button>
-               <button onClick={() => { onDelete(nodeToDelete.id); setIsDeleteModalOpen(false); }} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-red-900/20">Confirm Purge</button>
+               <button onClick={() => { onDelete(nodeToDelete.id); setIsDeleteModalOpen(false); }} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black tracking-widest shadow-lg shadow-red-900/20">Confirm purge</button>
             </div>
           </div>
         </div>
@@ -312,8 +312,8 @@ const ResourceFormModal: React.FC<{
           </div>
           <div className="pt-2 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>
-            <button type="submit" className="px-6 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-cyan-900/20 flex items-center gap-2 transition-all">
-              <Save size={16} /> Save Record
+            <button type="submit" className="px-6 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest shadow-lg shadow-cyan-900/20 flex items-center gap-2 transition-all">
+              <Save size={16} /> Save record
             </button>
           </div>
         </form>

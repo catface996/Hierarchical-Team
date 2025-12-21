@@ -89,8 +89,8 @@ const PromptManagement: React.FC<PromptManagementProps> = ({ prompts, onAdd, onU
                     <p className="text-slate-400 text-xs mt-1 font-medium">Standardized instruction templates for hierarchical agent coordination.</p>
                 </div>
             </div>
-            <button onClick={() => { setEditingPrompt(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs uppercase tracking-widest">
-                <Plus size={14} /> New Template
+            <button onClick={() => { setEditingPrompt(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest">
+                <Plus size={14} /> New template
             </button>
         </div>
 
@@ -101,9 +101,9 @@ const PromptManagement: React.FC<PromptManagementProps> = ({ prompts, onAdd, onU
                     <input type="text" placeholder="Filter by name, tag..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full bg-slate-950 border border-slate-700/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-cyan-500/50 text-slate-200 transition-all" />
                 </div>
                 <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800 overflow-x-auto no-scrollbar">
-                    <button onClick={() => { setActiveCategory('All'); setCurrentPage(1); }} className={`px-3 py-1.5 text-[10px] font-bold rounded transition-all whitespace-nowrap ${activeCategory === 'All' ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ALL</button>
+                    <button onClick={() => { setActiveCategory('All'); setCurrentPage(1); }} className={`px-3 py-1.5 text-[10px] font-bold rounded transition-all whitespace-nowrap ${activeCategory === 'All' ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>All</button>
                     {CATEGORIES.map(cat => (
-                        <button key={cat} onClick={() => { setActiveCategory(cat); setCurrentPage(1); }} className={`px-3 py-1.5 text-[10px] font-bold rounded transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>{cat.toUpperCase()}</button>
+                        <button key={cat} onClick={() => { setActiveCategory(cat); setCurrentPage(1); }} className={`px-3 py-1.5 text-[10px] font-bold rounded transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>{cat}</button>
                     ))}
                 </div>
             </div>
@@ -209,7 +209,7 @@ const PromptManagement: React.FC<PromptManagementProps> = ({ prompts, onAdd, onU
         <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
             <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library Page</span>
+                <span className="text-[10px] font-bold text-slate-500 tracking-widest">Library segment</span>
                 <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
                 <span className="text-[10px] text-slate-500 font-bold">/</span>
                 <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -259,14 +259,14 @@ const PromptFormModal: React.FC<{ prompt: PromptTemplate | null, onClose: () => 
                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">System Tags</label>
                <div className="flex gap-2 mb-2">
                    <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())} placeholder="Add tag..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none" />
-                   <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all uppercase tracking-widest">ADD</button>
+                   <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all tracking-widest">Add</button>
                </div>
                <div className="flex flex-wrap gap-2">{formData.tags.map((tag, idx) => ( <span key={idx} className="flex items-center gap-1 bg-slate-800 text-slate-300 px-2 py-1 rounded text-[10px] font-bold border border-slate-700">{tag}<button type="button" onClick={() => removeTag(idx)} className="hover:text-white"><X size={12}/></button></span> ))}</div>
             </div>
         </form>
         <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end gap-3">
              <button onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>
-             <button onClick={(e) => { e.preventDefault(); onSave({ ...formData, updatedAt: Date.now() }); onClose(); }} className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2"><Save size={16} /> Save Record</button>
+             <button onClick={(e) => { e.preventDefault(); onSave({ ...formData, updatedAt: Date.now() }); onClose(); }} className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2"><Save size={16} /> Save record</button>
         </div>
       </div>
     </div>

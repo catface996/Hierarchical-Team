@@ -109,9 +109,9 @@ const DiscoveryInbox: React.FC<DiscoveryInboxProps> = ({ discoveredNodes, discov
         </div>
         <button
           onClick={onClear}
-          className="flex items-center gap-2 text-slate-500 hover:text-red-400 px-4 py-2 rounded-lg transition-all font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+          className="flex items-center gap-2 text-slate-500 hover:text-red-400 px-4 py-2 rounded-lg transition-all font-bold text-xs tracking-widest hover:bg-slate-900"
         >
-          <Trash2 size={14} /> Clear Queue
+          <Trash2 size={14} /> Clear queue
         </button>
       </div>
 
@@ -304,7 +304,7 @@ const DiscoveryInbox: React.FC<DiscoveryInboxProps> = ({ discoveredNodes, discov
                               </button>
                               <button
                                 onClick={() => onApproveNode(node)}
-                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-black tracking-widest rounded-lg transition-all flex items-center gap-1.5"
                               >
                                 <Check size={12} /> Approve
                               </button>
@@ -387,7 +387,7 @@ const DiscoveryInbox: React.FC<DiscoveryInboxProps> = ({ discoveredNodes, discov
           <ChevronLeft size={14} /> Prev
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Queue Segment</span>
+          <span className="text-[10px] font-bold text-slate-500 tracking-widest">Queue segment</span>
           <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
           <span className="text-[10px] text-slate-500 font-bold">/</span>
           <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>

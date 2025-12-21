@@ -82,14 +82,14 @@ const ReportManagement: React.FC<ReportManagementProps> = ({ reports, onViewRepo
           <p className="text-slate-400 text-xs mt-1 font-medium">Aggregated system audits and multi-agent synthesis reports.</p>
         </div>
         <div className="flex gap-2">
-            <button 
+            <button
                 onClick={onManageTemplates}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-widest"
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg transition-all text-xs font-bold tracking-widest"
             >
                 <BookOpen size={14} /> Templates
             </button>
-            <button className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-widest shadow-lg shadow-cyan-900/20">
-                <Zap size={14} /> Auto-Generate
+            <button className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all text-xs font-bold tracking-widest shadow-lg shadow-cyan-900/20">
+                <Zap size={14} /> Auto-generate
             </button>
         </div>
       </div>
@@ -109,12 +109,12 @@ const ReportManagement: React.FC<ReportManagementProps> = ({ reports, onViewRepo
             </div>
             <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800 overflow-x-auto no-scrollbar">
                 {['All', 'Diagnosis', 'Security', 'Performance', 'Audit'].map(type => (
-                   <button 
-                      key={type} 
-                      onClick={() => { setTypeFilter(type); setCurrentPage(1); }} 
+                   <button
+                      key={type}
+                      onClick={() => { setTypeFilter(type); setCurrentPage(1); }}
                       className={`px-3 py-1.5 text-[10px] font-bold rounded transition-all whitespace-nowrap ${typeFilter === type ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                    >
-                     {type.toUpperCase()}
+                     {type}
                    </button>
                 ))}
             </div>
@@ -128,8 +128,8 @@ const ReportManagement: React.FC<ReportManagementProps> = ({ reports, onViewRepo
                     <LayoutGrid size={16} />
                 </button>
             </div>
-            <div className="hidden sm:block text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Cache: <span className="text-white">{filteredReports.length}</span> Objects
+            <div className="hidden sm:block text-[10px] font-black text-slate-500 tracking-widest">
+                Cache: <span className="text-white">{filteredReports.length}</span> objects
             </div>
          </div>
       </div>
@@ -273,10 +273,10 @@ const ReportManagement: React.FC<ReportManagementProps> = ({ reports, onViewRepo
               disabled={currentPage === 1} 
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
           >
-              <ChevronLeft size={14} /> PREV
+              <ChevronLeft size={14} /> Prev
           </button>
           <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library Page</span>
+              <span className="text-[10px] font-bold text-slate-500 tracking-widest">Library segment</span>
               <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
               <span className="text-[10px] text-slate-500 font-bold">/</span>
               <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
@@ -286,7 +286,7 @@ const ReportManagement: React.FC<ReportManagementProps> = ({ reports, onViewRepo
               disabled={currentPage === totalPages || totalPages === 0} 
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
           >
-              NEXT <ChevronRight size={14} />
+              Next <ChevronRight size={14} />
           </button>
       </div>
     </div>

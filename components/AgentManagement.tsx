@@ -143,13 +143,13 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                     />
                 </div>
                 <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
-                    {['ALL', 'SUPERVISOR', 'WORKER'].map(role => (
-                        <button 
-                            key={role} 
-                            onClick={() => { setRoleFilter(role as any); setCurrentPage(1); }} 
-                            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${roleFilter === role ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+                    {[{key: 'ALL', label: 'All'}, {key: 'SUPERVISOR', label: 'Supervisor'}, {key: 'WORKER', label: 'Worker'}].map(({key, label}) => (
+                        <button
+                            key={key}
+                            onClick={() => { setRoleFilter(key as any); setCurrentPage(1); }}
+                            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${roleFilter === key ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            {role}
+                            {label}
                         </button>
                     ))}
                 </div>
@@ -221,11 +221,11 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                                             <button onClick={() => setAgentToDelete(agent)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-red-400 transition-all" title="Decommission"><Trash2 size={15} /></button>
                                         )}
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setAuditAgent(agent)}
                                         className="px-2.5 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5"
                                     >
-                                        TRACE LOG <ArrowUpRight size={12} />
+                                        Trace log <ArrowUpRight size={12} />
                                     </button>
                                 </div>
                             </div>
@@ -277,7 +277,7 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                         </div>
                     </div>
                     <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end">
-                        <button onClick={() => setViewingAgent(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors">Close Portal</button>
+                        <button onClick={() => setViewingAgent(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black tracking-widest rounded-lg transition-colors">Close portal</button>
                     </div>
                 </div>
             </div>
@@ -294,8 +294,8 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                     <h3 className="font-bold text-xl text-white mb-2 tracking-tight">Decommission Unit?</h3>
                     <p className="text-slate-400 text-sm mb-8 leading-relaxed">This action will permanently purge <span className="text-white font-black underline decoration-red-500/50">{agentToDelete.name}</span> from the neural network fabric.</p>
                     <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setAgentToDelete(null)} className="px-4 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-bold transition-colors">Abort Purge</button>
-                        <button onClick={() => { onDeleteAgent(agentToDelete.teamId, agentToDelete.id); setAgentToDelete(null); }} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-red-900/20">Confirm Purge</button>
+                        <button onClick={() => setAgentToDelete(null)} className="px-4 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-bold transition-colors">Abort purge</button>
+                        <button onClick={() => { onDeleteAgent(agentToDelete.teamId, agentToDelete.id); setAgentToDelete(null); }} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black tracking-widest shadow-lg shadow-red-900/20">Confirm purge</button>
                     </div>
                 </div>
             </div>
@@ -311,7 +311,7 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                 <ChevronLeft size={14} /> Prev
             </button>
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Registry Segment</span>
+                <span className="text-[10px] font-bold text-slate-500 tracking-widest">Registry segment</span>
                 <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
                 <span className="text-[10px] text-slate-500 font-bold">/</span>
                 <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
