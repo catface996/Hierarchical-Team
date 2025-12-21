@@ -36,7 +36,7 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
       {
         id: 'welcome',
         role: 'assistant',
-        content: 'Hello! I am the EntropyOps Orchestrator. How can I assist you with your infrastructure today? You can attach specific resources or topologies to our conversation for deeper analysis.',
+        content: 'Hello! I am the EntropyOPStack Orchestrator. How can I assist you with your infrastructure today? You can attach specific resources or topologies to our conversation for deeper analysis.',
         timestamp: Date.now() - 300000
       },
       {
@@ -188,7 +188,7 @@ const GlobalChat: React.FC<GlobalChatProps> = ({ nodes, groups, teams, isStandal
                 <Bot size={28} />
               </div>
               <div>
-                <h3 className="text-lg font-bold tracking-tight"><span className="text-white">Entropy</span><span className="text-cyan-400">Ops</span> <span className="text-white">System Orchestrator</span></h3>
+                <h3 className="text-lg font-bold tracking-tight"><span className="text-white">Entropy</span><span className="text-cyan-400">OPStack</span> <span className="text-white">Orchestrator</span></h3>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                   <span className="text-xs text-slate-400 font-mono">Full-Spectrum Standalone Mode</span>

@@ -91,7 +91,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                  <Activity size={32} className="text-cyan-400" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1"><span className="text-white">Entropy</span><span className="text-cyan-400">Ops</span></h1>
+            <h1 className="text-2xl font-bold tracking-tight mb-1"><span className="text-white">Entropy</span><span className="text-cyan-400">OPStack</span></h1>
             <p className="text-sm text-slate-400">Hierarchical Multi-Agent System</p>
           </div>
 

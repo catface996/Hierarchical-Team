@@ -1,4 +1,4 @@
-# EntropyOps
+# EntropyOPStack
 
 <div align="center">
 
@@ -20,7 +20,7 @@
 
 ## Overview
 
-EntropyOps is a next-generation **AI-Driven Operations Stack** that unifies three critical operational domains into a single intelligent platform:
+EntropyOPStack is a next-generation **AI-Driven Operations Stack** that unifies three critical operational domains into a single intelligent platform:
 
 | Layer | Domain | Focus |
 |-------|--------|-------|
@@ -28,11 +28,11 @@ EntropyOps is a next-generation **AI-Driven Operations Stack** that unifies thre
 | **Business Operations** | 运营 (Business Ops) | KPIs, user journey, conversion, business impact |
 | **AIOps** | 运维 (IT Operations) | Infrastructure monitoring, diagnostics, automation |
 
-By leveraging a **hierarchical multi-agent collaboration system**, EntropyOps bridges the gap between business strategy, operational execution, and technical infrastructure.
+By leveraging a **hierarchical multi-agent collaboration system**, EntropyOPStack bridges the gap between business strategy, operational execution, and technical infrastructure.
 
-### Why EntropyOps?
+### Why EntropyOPStack?
 
-Unlike traditional infrastructure monitoring tools, EntropyOps provides:
+Unlike traditional infrastructure monitoring tools, EntropyOPStack provides:
 
 - **Business-centric perspective** - Understanding how technical systems impact business outcomes
 - **Decision optimization** - AI-driven resource allocation, scheduling, and capacity planning
@@ -354,7 +354,7 @@ npm run preview
 
 ## Roadmap: AI-Powered Unified Operations Platform
 
-EntropyOps is evolving into a comprehensive **AI Operations Research · Business Operations · IT Operations** integrated platform.
+EntropyOPStack is evolving into a comprehensive **AI Operations Research · Business Operations · IT Operations** integrated platform.
 
 ### Vision
 
