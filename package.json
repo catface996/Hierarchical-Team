@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/genai": "^1.31.0",
     "d3": "^7.9.0",
+    "html2pdf.js": "^0.12.1",
     "lucide-react": "0.303.0",
     "mermaid": "10.9.0",
     "react": "18.2.0",

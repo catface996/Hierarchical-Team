@@ -1,21 +1,28 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Report } from '../types';
-import { 
-  ArrowLeft, 
-  Printer, 
-  Download, 
-  Calendar, 
-  User, 
+import {
+  ArrowLeft,
+  Printer,
+  Download,
+  Calendar,
+  User,
   FileText,
   BarChart,
   FileCheck,
   Lock,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import mermaid from 'mermaid';
+import html2pdf from 'html2pdf.js';
 import {
   BarChart as ReBarChart,
   Bar,
@@ -169,8 +176,108 @@ const DataChart: React.FC<{ configString: string }> = ({ configString }) => {
 };
 
 
+const ZOOM_LEVELS = [50, 75, 100, 125, 150, 175, 200];
+const DEFAULT_ZOOM = 100;
+
 const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, onBack }) => {
-  
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
+  const [isExporting, setIsExporting] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Handle fullscreen change events (including ESC key exit)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    setZoomLevel(prev => {
+      const currentIndex = ZOOM_LEVELS.indexOf(prev);
+      if (currentIndex < ZOOM_LEVELS.length - 1) {
+        return ZOOM_LEVELS[currentIndex + 1];
+      }
+      return prev;
+    });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoomLevel(prev => {
+      const currentIndex = ZOOM_LEVELS.indexOf(prev);
+      if (currentIndex > 0) {
+        return ZOOM_LEVELS[currentIndex - 1];
+      }
+      return prev;
+    });
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setZoomLevel(DEFAULT_ZOOM);
+  }, []);
+
+  const exportPDF = useCallback(async () => {
+    if (!contentRef.current || isExporting) return;
+
+    setIsExporting(true);
+
+    // Store current zoom and reset to 100% for export
+    const previousZoom = zoomLevel;
+    setZoomLevel(100);
+
+    // Wait for React to re-render with 100% zoom
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const element = contentRef.current;
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${report.title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#0f172a'
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait'
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error('PDF export error:', error);
+    } finally {
+      // Restore previous zoom level
+      setZoomLevel(previousZoom);
+      setIsExporting(false);
+    }
+  }, [report.title, isExporting, zoomLevel]);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+    }
+  }, []);
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'Security': return <Lock size={20} className="text-red-400" />;
@@ -190,38 +297,127 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, onBack }) =
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200 p-6 overflow-hidden">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 shrink-0">
-         <div className="flex items-center gap-4">
-            <button 
-              onClick={onBack}
-              className="p-2 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+    <div ref={containerRef} className="flex flex-col h-full bg-slate-950 text-slate-200 p-6 overflow-hidden">
+      {/* Header - Hidden in fullscreen */}
+      {!isFullscreen && (
+        <div className="flex justify-between items-center mb-6 shrink-0">
+           <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="p-2 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                title="Back"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                 <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+                    {getTypeIcon(report.type)}
+                    {report.title}
+                 </h2>
+                 <div className="text-xs text-slate-500 font-mono mt-1">ID: {report.id}</div>
+              </div>
+           </div>
+           <div className="flex gap-2">
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1 px-2 py-1 bg-slate-900 border border-slate-800 rounded">
+                <button
+                  onClick={zoomOut}
+                  disabled={zoomLevel === ZOOM_LEVELS[0]}
+                  className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <button
+                  onClick={resetZoom}
+                  className="px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors min-w-[48px]"
+                  title="Reset Zoom"
+                >
+                  {zoomLevel}%
+                </button>
+                <button
+                  onClick={zoomIn}
+                  disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                  className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+                  title="Zoom In"
+                >
+                  <ZoomIn size={14} />
+                </button>
+              </div>
+              <button
+                onClick={toggleFullscreen}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs font-bold text-slate-300 hover:text-white transition-colors"
+                title="Fullscreen"
+              >
+                  <Maximize2 size={14} /> Fullscreen
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs font-bold text-slate-300 hover:text-white transition-colors">
+                  <Printer size={14} /> Print
+              </button>
+              <button
+                onClick={exportPDF}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-3 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-800 disabled:cursor-not-allowed text-white rounded text-xs font-bold transition-colors shadow-lg shadow-cyan-900/20"
+              >
+                  {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* Fullscreen Controls - Only shown in fullscreen */}
+      {isFullscreen && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-900/90 border border-slate-700 rounded-lg backdrop-blur-sm shadow-lg">
+            <button
+              onClick={zoomOut}
+              disabled={zoomLevel === ZOOM_LEVELS[0]}
+              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+              title="Zoom Out"
             >
-              <ArrowLeft size={20} />
+              <ZoomOut size={14} />
             </button>
-            <div>
-               <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-3">
-                  {getTypeIcon(report.type)}
-                  {report.title}
-               </h2>
-               <div className="text-xs text-slate-500 font-mono mt-1">ID: {report.id}</div>
-            </div>
-         </div>
-         <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs font-bold text-slate-300 hover:text-white transition-colors">
-                <Printer size={14} /> Print
+            <button
+              onClick={resetZoom}
+              className="px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors min-w-[48px]"
+              title="Reset Zoom"
+            >
+              {zoomLevel}%
             </button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-bold transition-colors shadow-lg shadow-cyan-900/20">
-                <Download size={14} /> Export PDF
+            <button
+              onClick={zoomIn}
+              disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn size={14} />
             </button>
-         </div>
-      </div>
+          </div>
+          {/* Exit Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all backdrop-blur-sm shadow-lg"
+            title="Exit Fullscreen (ESC)"
+          >
+            <Minimize2 size={14} /> Exit
+          </button>
+        </div>
+      )}
 
       {/* Main Content Scrollable Area */}
       <div className="flex-1 overflow-auto custom-scrollbar">
-         <div className="max-w-4xl mx-auto space-y-6">
-            
+         <div
+           ref={contentRef}
+           className={`mx-auto space-y-6 ${isFullscreen ? 'max-w-5xl' : 'max-w-4xl'} pdf-content`}
+           style={{
+             transform: `scale(${zoomLevel / 100})`,
+             transformOrigin: 'top center',
+             width: `${100 / (zoomLevel / 100)}%`,
+           }}
+         >
+
             {/* Metadata Card */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
