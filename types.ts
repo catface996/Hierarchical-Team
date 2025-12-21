@@ -11,7 +11,8 @@ export enum AgentStatus {
 export enum AgentRole {
   GLOBAL_SUPERVISOR = 'Global Supervisor',
   TEAM_SUPERVISOR = 'Team Supervisor',
-  WORKER = 'Worker'
+  WORKER = 'Worker',
+  SCOUTER = 'Scouter'
 }
 
 export interface AgentConfig {
@@ -52,29 +53,8 @@ export interface LogMessage {
   fromAgentName: string;
   toAgentId?: string;
   content: string;
-  type: 'instruction' | 'report' | 'thought' | 'system';
+  type: 'instruction' | 'report' | 'thought' | 'system' | 'discovery';
   isStreaming?: boolean;
-}
-
-export interface TraceStep {
-  id: string;
-  timestamp: number;
-  type: 'thought' | 'action' | 'observation' | 'output';
-  content: string;
-  metadata?: any;
-}
-
-export interface AgentExecutionRecord {
-  id: string;
-  agentId: string;
-  sessionId: string;
-  teamName: string;
-  resourceLabel: string;
-  startTime: number;
-  duration: number; // ms
-  status: 'Success' | 'Warning' | 'Error';
-  summary: string;
-  steps: TraceStep[];
 }
 
 export interface TopologyNode {
@@ -84,14 +64,17 @@ export interface TopologyNode {
   x?: number;
   y?: number;
   properties?: Record<string, string>;
+  isShadow?: boolean; // 新增：是否为自动发现但未确认的节点
 }
 
-export type LinkType = 'call' | 'deployment' | 'dependency';
+export type LinkType = 'call' | 'deployment' | 'dependency' | 'inferred';
 
 export interface TopologyLink {
   source: string;
   target: string;
   type?: LinkType;
+  confidence?: number; // 0-1 AI 推断置信度
+  metadata?: any;
 }
 
 export interface Topology {
@@ -99,6 +82,22 @@ export interface Topology {
   links: TopologyLink[];
 }
 
+export interface DiscoverySource {
+  id: string;
+  name: string;
+  type: 'K8s' | 'Cloud' | 'Prometheus' | 'Trace';
+  endpoint: string;
+  status: 'Connected' | 'Error' | 'Scanning';
+  lastScan?: number;
+}
+
+export interface DiscoveredDelta {
+  nodes: TopologyNode[];
+  links: TopologyLink[];
+  reasoning: string;
+}
+
+// ... 其余接口保持不变
 export interface TopologyGroup {
   id: string;
   name: string;
@@ -145,6 +144,16 @@ export interface PromptTemplate {
   updatedAt: number;
 }
 
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'Incident' | 'Performance' | 'Security' | 'Audit';
+  content: string; // Markdown
+  tags: string[];
+  updatedAt: number;
+}
+
 export interface AIModel {
   id: string;
   name: string;
@@ -172,4 +181,27 @@ export interface Report {
   summary: string;
   content: string;
   tags: string[];
+}
+
+/**
+ * Added missing interfaces for agent execution history tracking.
+ */
+export interface TraceStep {
+  id: string;
+  timestamp: number;
+  type: 'thought' | 'action' | 'observation';
+  content: string;
+}
+
+export interface AgentExecutionRecord {
+  id: string;
+  agentId: string;
+  sessionId: string;
+  teamName: string;
+  resourceLabel: string;
+  startTime: number;
+  duration: number;
+  status: 'Success' | 'Warning' | 'Error';
+  summary: string;
+  steps: TraceStep[];
 }

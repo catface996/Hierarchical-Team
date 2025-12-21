@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Activity, 
@@ -14,7 +13,7 @@ import {
   ArrowRight,
   LayoutGrid
 } from 'lucide-react';
-import { TopologyNode, Team, DiagnosisSession } from '../types';
+import { TopologyNode, Team, DiagnosisSession, Agent } from '../types';
 
 interface DashboardProps {
   nodes: TopologyNode[];
@@ -37,16 +36,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const totalNodes = nodes.length;
   const totalTeams = teams.length;
   
+  // Fix: Simplified reduce logic and ensured strict numeric addition.
   const stats = teams.reduce((acc, team) => {
     // Sum findings from supervisor and members
-    // Using Number casting to ensure operands are recognized as numbers for arithmetic safety.
-    // Fix: Explicitly cast accumulator as number to prevent TS2362 error.
-    const teamWarnings = (Number(team.supervisor.findings?.warnings) || 0) + team.members.reduce((s: number, m) => s + (Number(m.findings?.warnings) || 0), 0);
-    const teamCritical = (Number(team.supervisor.findings?.critical) || 0) + team.members.reduce((s: number, m) => s + (Number(m.findings?.critical) || 0), 0);
+    const supervisorWarnings = Number(team.supervisor.findings?.warnings || 0);
+    const supervisorCritical = Number(team.supervisor.findings?.critical || 0);
     
-    if (teamCritical > 0) acc.critical++;
-    else if (teamWarnings > 0) acc.warning++;
-    else acc.healthy++;
+    const workerWarnings = team.members.reduce((s: number, m: Agent): number => s + Number(m.findings?.warnings || 0), 0);
+    const workerCritical = team.members.reduce((s: number, m: Agent): number => s + Number(m.findings?.critical || 0), 0);
+    
+    const teamWarnings = supervisorWarnings + workerWarnings;
+    const teamCritical = supervisorCritical + workerCritical;
+    
+    if (teamCritical > 0) {
+      acc.critical += 1;
+    } else if (teamWarnings > 0) {
+      acc.warning += 1;
+    } else {
+      acc.healthy += 1;
+    }
     
     return acc;
   }, { healthy: 0, warning: 0, critical: 0 });
@@ -156,17 +164,19 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar pr-2">
                 {teams.map(team => {
                    // Calculate total issues for this team by summing supervisor and member findings.
-                   // Ensure all values are treated as numbers for arithmetic safety.
-                   const supervisorIssues = (Number(team.supervisor.findings?.warnings) || 0) + (Number(team.supervisor.findings?.critical) || 0);
-                   const workerIssues = team.members.reduce((sum: number, member) => {
-                     const w = Number(member.findings?.warnings) || 0;
-                     const c = Number(member.findings?.critical) || 0;
+                   const supervisorWarnings = Number(team.supervisor.findings?.warnings || 0);
+                   const supervisorCritical = Number(team.supervisor.findings?.critical || 0);
+                   
+                   // Fix: Ensured worker issues are strictly numeric sums to satisfy arithmetic requirements.
+                   const workerIssues = team.members.reduce((sum: number, member: Agent): number => {
+                     const w = Number(member.findings?.warnings || 0);
+                     const c = Number(member.findings?.critical || 0);
                      return sum + w + c;
                    }, 0);
                    
-                   // Summing supervisor and worker issues with explicit type conversion check.
-                   const totalIssues = supervisorIssues + workerIssues;
-                   const isCrit = (team.supervisor.findings?.critical ?? 0) > 0 || team.members.some(m => (m.findings?.critical ?? 0) > 0);
+                   // Calculate total issues for status display
+                   const totalIssues = supervisorWarnings + supervisorCritical + workerIssues;
+                   const isCrit = supervisorCritical > 0 || team.members.some(m => Number(m.findings?.critical || 0) > 0);
                    const isWarn = !isCrit && totalIssues > 0;
                    
                    return (

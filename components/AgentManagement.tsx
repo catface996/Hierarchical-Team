@@ -35,7 +35,8 @@ import {
   ChevronDown,
   Terminal,
   MessageSquare,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 
 interface AgentManagementProps {
@@ -47,7 +48,8 @@ interface AgentManagementProps {
   onManageTools: () => void;
 }
 
-const ITEMS_PER_PAGE = 12;
+// 默认分页 8，确保网格布局美观
+const ITEMS_PER_PAGE = 8;
 
 interface FlatAgent extends Agent {
     teamId: string;
@@ -96,11 +98,11 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
 
   const getStatusColor = (status: AgentStatus) => {
     switch (status) {
-      case AgentStatus.THINKING: return "text-cyan-400 bg-cyan-950/30 border-cyan-800";
-      case AgentStatus.WORKING: return "text-green-400 bg-green-950/30 border-green-800";
-      case AgentStatus.ERROR: return "text-red-500 bg-red-950/30 border-red-800";
-      case AgentStatus.WAITING: return "text-yellow-500 bg-yellow-950/30 border-yellow-800";
-      default: return "text-slate-500 bg-slate-900 border-slate-800";
+      case AgentStatus.THINKING: return "text-cyan-400 bg-cyan-950/40 border-cyan-500/30";
+      case AgentStatus.WORKING: return "text-green-400 bg-green-950/40 border-green-500/30";
+      case AgentStatus.ERROR: return "text-red-400 bg-red-950/40 border-red-500/30";
+      case AgentStatus.WAITING: return "text-yellow-400 bg-yellow-950/40 border-yellow-500/30";
+      default: return "text-slate-400 bg-slate-900 border-slate-800";
     }
   };
 
@@ -112,7 +114,7 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                 <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
                     <Users className="text-cyan-400" /> Agents Registry
                 </h2>
-                <p className="text-slate-400 text-sm mt-1">Manage hierarchical supervisor and specialized worker units.</p>
+                <p className="text-slate-400 text-xs mt-1 font-medium">Monitoring and managing {allAgents.length} autonomous operation units across the cluster.</p>
             </div>
             <div className="flex gap-2">
                  <button onClick={onManagePrompts} className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs font-bold text-slate-300 hover:text-white transition-colors">
@@ -128,24 +130,24 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between mb-4 gap-4 bg-slate-900/50 p-3 rounded-xl border border-slate-800 shrink-0">
+        <div className="flex flex-col lg:flex-row items-center justify-between mb-6 gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800/60 shrink-0">
             <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto items-center">
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Search agents..." 
+                        placeholder="Search system units..." 
                         value={searchTerm} 
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
-                        className="w-full bg-slate-950 border border-slate-700 rounded-md py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-cyan-500 text-slate-200" 
+                        className="w-full bg-slate-950 border border-slate-700/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-cyan-500/50 text-slate-200 transition-all" 
                     />
                 </div>
-                <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-700">
+                <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
                     {['ALL', 'SUPERVISOR', 'WORKER'].map(role => (
                         <button 
                             key={role} 
                             onClick={() => { setRoleFilter(role as any); setCurrentPage(1); }} 
-                            className={`px-3 py-1.5 text-xs font-bold rounded transition-all ${roleFilter === role ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${roleFilter === role ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {role}
                         </button>
@@ -153,7 +155,7 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                 </div>
             </div>
             <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
-                <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-700">
+                <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
                     <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
                         <LayoutList size={16} />
                     </button>
@@ -161,268 +163,274 @@ const AgentManagement: React.FC<AgentManagementProps> = ({
                         <LayoutGrid size={16} />
                     </button>
                 </div>
-                <div className="text-xs text-slate-500 font-mono">
-                    <span className="text-white font-bold">{paginatedAgents.length}</span> / {filteredAgents.length}
-                </div>
             </div>
         </div>
 
-        {/* Agents Grid */}
-        <div className="flex-1 overflow-auto custom-scrollbar relative">
+        {/* Agents Grid - Redesigned Cards */}
+        <div className="flex-1 overflow-auto custom-scrollbar">
             {paginatedAgents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-6">
                     {paginatedAgents.map(agent => (
-                        <div key={agent.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-cyan-500/40 hover:bg-slate-900/80 transition-all group flex flex-col h-[280px] relative overflow-hidden shadow-sm">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`p-2.5 rounded-xl border ${agent.role === AgentRole.TEAM_SUPERVISOR ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/30' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>
-                                    {agent.role === AgentRole.TEAM_SUPERVISOR ? <Shield size={24} /> : <Zap size={24} />}
+                        <div key={agent.id} className="relative bg-slate-900 border border-slate-800/80 rounded-xl hover:border-cyan-500/40 hover:bg-slate-800/40 transition-all group flex flex-col min-h-[220px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-cyan-950/10">
+                            {/* Decorative Top Line */}
+                            <div className={`h-1 w-full ${agent.role === AgentRole.TEAM_SUPERVISOR ? 'bg-indigo-600' : 'bg-cyan-600'} opacity-30 group-hover:opacity-100 transition-opacity`}></div>
+                            
+                            <div className="p-5 flex flex-col flex-1">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className={`p-2 rounded-lg ${agent.role === AgentRole.TEAM_SUPERVISOR ? 'bg-indigo-950/30 text-indigo-400 border border-indigo-500/20' : 'bg-slate-950 text-slate-400 border border-slate-800'}`}>
+                                        {agent.role === AgentRole.TEAM_SUPERVISOR ? <Shield size={20} /> : <Zap size={20} />}
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border tracking-wider ${getStatusColor(agent.status)}`}>
+                                        {agent.status}
+                                    </span>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getStatusColor(agent.status)}`}>
-                                    {agent.status}
-                                </span>
-                            </div>
 
-                            <div className="mb-4">
-                                <h3 className="text-base font-bold text-white mb-0.5 truncate group-hover:text-cyan-400 transition-colors">{agent.name}</h3>
-                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{agent.role === AgentRole.TEAM_SUPERVISOR ? 'Team Supervisor' : 'Specialized Worker'}</div>
-                            </div>
+                                <div className="mb-4">
+                                    <h3 className="text-base font-bold text-white mb-0.5 truncate group-hover:text-cyan-400 transition-colors leading-tight">{agent.name}</h3>
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] opacity-80">
+                                        {agent.role === AgentRole.TEAM_SUPERVISOR ? 'Strategic Coordinator' : 'Tactical Unit'}
+                                    </div>
+                                </div>
 
-                            <div className="space-y-2 flex-1">
-                                <div className="flex items-center gap-2 text-xs">
-                                    <Target size={14} className="text-slate-600 shrink-0" />
-                                    <span className="text-slate-500">Expertise:</span>
-                                    <span className="text-slate-200 font-bold truncate">{agent.specialty || 'Coordination'}</span>
+                                <div className="space-y-2.5 flex-1">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shrink-0">
+                                            <Target size={12} className="text-slate-500" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-[10px] text-slate-500 leading-none mb-1">Expertise</div>
+                                            <div className="text-xs text-slate-200 font-bold truncate">{agent.specialty || 'Generalist'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shrink-0">
+                                            <Layers size={12} className="text-slate-500" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-[10px] text-slate-500 leading-none mb-1">Deployment</div>
+                                            <div className="text-xs text-slate-300 truncate font-medium">{agent.teamName}</div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <Server size={14} className="text-slate-600 shrink-0" />
-                                    <span className="text-slate-500">Team:</span>
-                                    <span className="text-slate-300 truncate">{agent.teamName}</span>
-                                </div>
-                            </div>
 
-                            <div className="mt-4 pt-4 border-t border-slate-800/60 flex justify-between items-center shrink-0">
-                                <div className="flex items-center gap-1">
-                                    <button onClick={() => setViewingAgent(agent)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="View Profile"><Eye size={14} /></button>
-                                    <button onClick={() => setConfigAgent(agent)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="Configure"><Settings size={14} /></button>
-                                    {agent.role === AgentRole.WORKER && (
-                                        <button onClick={() => setAgentToDelete(agent)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-red-400 transition-all" title="Delete"><Trash2 size={14} /></button>
-                                    )}
+                                <div className="mt-5 pt-4 border-t border-slate-800/40 flex justify-between items-center shrink-0">
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={() => setViewingAgent(agent)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="View Intelligence Profile"><Eye size={15} /></button>
+                                        <button onClick={() => setConfigAgent(agent)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="Modify Protocol"><Settings size={15} /></button>
+                                        {agent.role === AgentRole.WORKER && (
+                                            <button onClick={() => setAgentToDelete(agent)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-red-400 transition-all" title="Decommission"><Trash2 size={15} /></button>
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => setAuditAgent(agent)}
+                                        className="px-2.5 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5"
+                                    >
+                                        TRACE LOG <ArrowUpRight size={12} />
+                                    </button>
                                 </div>
-                                <button 
-                                    onClick={() => setAuditAgent(agent)}
-                                    className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 group-hover:text-indigo-400 transition-colors uppercase tracking-widest"
-                                >
-                                    Trace <ArrowUpRight size={12} />
-                                </button>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-xl">
-                    <Users size={48} className="opacity-20 mb-4" />
-                    <p>No agent operational units found.</p>
+                <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-2xl">
+                    <Users size={48} className="opacity-10 mb-4" />
+                    <p className="text-sm font-bold tracking-wide">No neural units match the current filter.</p>
                 </div>
             )}
         </div>
 
-        {/* Execution History Modal (The TRACE target) */}
-        {auditAgent && (
-            <AgentAuditModal 
-                agent={auditAgent} 
-                onClose={() => setAuditAgent(null)} 
-            />
-        )}
-
-        {/* Config Modal */}
-        {configAgent && (
-            <AgentConfigModal 
-                agent={configAgent} 
-                onClose={() => setConfigAgent(null)} 
-                onSave={(newConfig) => {
-                    onUpdateAgentConfig(configAgent.teamId, configAgent.id, newConfig);
-                    setConfigAgent(null);
-                }} 
-            />
-        )}
-
-        {/* View Profile Modal */}
+        {/* Audit/Config Modals... (逻辑部分保持一致) */}
+        {auditAgent && <AgentAuditModal agent={auditAgent} onClose={() => setAuditAgent(null)} />}
+        {configAgent && <AgentConfigModal agent={configAgent} onClose={() => setConfigAgent(null)} onSave={(newConfig) => { onUpdateAgentConfig(configAgent.teamId, configAgent.id, newConfig); setConfigAgent(null); }} />}
+        
         {viewingAgent && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
-                        <h3 className="font-bold text-white flex items-center gap-2"><Eye size={18} className="text-cyan-400" /> Agent Intelligence Profile</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border-t-4 border-t-cyan-600">
+                    <div className="p-5 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
+                        <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-widest"><Sparkles size={16} className="text-cyan-400" /> Unit intelligence profile</h3>
                         <button onClick={() => setViewingAgent(null)} className="text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
                     </div>
-                    <div className="p-6 space-y-4">
-                        <div className="flex items-center gap-4 p-4 bg-slate-950/50 rounded-lg border border-slate-800">
-                             <div className="p-3 bg-indigo-950/30 rounded-xl text-indigo-400 border border-indigo-500/20"><Bot size={32} /></div>
-                             <div>
-                                 <div className="text-lg font-bold text-white">{viewingAgent.name}</div>
-                                 <div className="text-xs text-slate-500 font-mono uppercase tracking-tighter">{viewingAgent.role}</div>
+                    <div className="p-6 space-y-5">
+                        <div className="flex items-center gap-5 p-5 bg-slate-950/80 rounded-xl border border-slate-800 shadow-inner">
+                             <div className="p-4 bg-indigo-950/40 rounded-2xl text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-950/50"><Bot size={36} /></div>
+                             <div className="min-w-0">
+                                 <div className="text-xl font-black text-white truncate">{viewingAgent.name}</div>
+                                 <div className="text-[10px] text-indigo-400 font-mono font-bold tracking-widest uppercase mt-1">{viewingAgent.role}</div>
                              </div>
                         </div>
-                        <div className="p-4 bg-slate-950/30 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase mb-2">Core Directives</div>
-                            <p className="text-xs text-slate-400 leading-relaxed italic">"{viewingAgent.config?.systemInstruction || 'Standard autonomous protocol.'}"</p>
+                        <div className="p-5 bg-slate-950/40 rounded-xl border border-slate-800">
+                            <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-3 flex items-center gap-2"><Terminal size={12} /> Autonomous directive</div>
+                            <p className="text-xs text-slate-300 leading-relaxed italic font-medium bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                                "{viewingAgent.config?.systemInstruction || 'Standard autonomous protocol. Operates within defined mission constraints with minimal supervision.'}"
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-800">
+                                <div className="text-[9px] text-slate-500 font-bold uppercase mb-1">Model</div>
+                                <div className="text-xs text-white font-mono">{viewingAgent.config?.model || 'Gemini 2.5'}</div>
+                            </div>
+                            <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-800">
+                                <div className="text-[9px] text-slate-500 font-bold uppercase mb-1">Temperature</div>
+                                <div className="text-xs text-white font-mono">{viewingAgent.config?.temperature || '0.3'}</div>
+                            </div>
                         </div>
                     </div>
-                    <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end">
-                        <button onClick={() => setViewingAgent(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded font-bold transition-colors">Close</button>
+                    <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end">
+                        <button onClick={() => setViewingAgent(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors">Close Portal</button>
                     </div>
                 </div>
             </div>
         )}
 
-        {/* Delete Confirmation */}
         {agentToDelete && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm p-6">
-                    <div className="flex items-center gap-3 mb-4 text-red-500">
-                        <AlertTriangle size={24} />
-                        <h3 className="font-bold text-lg text-white">Decommission Agent?</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in zoom-in-95 duration-200">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+                    <div className="flex justify-center mb-4 text-red-500">
+                        <div className="p-4 bg-red-950/20 rounded-full border border-red-900/30">
+                            <AlertTriangle size={32} />
+                        </div>
                     </div>
-                    <p className="text-slate-400 text-sm mb-6">Are you sure you want to remove <span className="text-white font-bold">{agentToDelete.name}</span> from the fleet?</p>
-                    <div className="flex justify-end gap-3">
-                        <button onClick={() => setAgentToDelete(null)} className="px-4 py-2 rounded text-slate-300 hover:bg-slate-800 text-sm">Cancel</button>
-                        <button onClick={() => { onDeleteAgent(agentToDelete.teamId, agentToDelete.id); setAgentToDelete(null); }} className="px-4 py-2 rounded bg-red-600 hover:bg-red-500 text-white text-sm font-bold">Confirm Delete</button>
+                    <h3 className="font-bold text-xl text-white mb-2 tracking-tight">Decommission Unit?</h3>
+                    <p className="text-slate-400 text-sm mb-8 leading-relaxed">This action will permanently purge <span className="text-white font-black underline decoration-red-500/50">{agentToDelete.name}</span> from the neural network fabric.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => setAgentToDelete(null)} className="px-4 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-bold transition-colors">Abort Purge</button>
+                        <button onClick={() => { onDeleteAgent(agentToDelete.teamId, agentToDelete.id); setAgentToDelete(null); }} className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-red-900/20">Confirm Purge</button>
                     </div>
                 </div>
             </div>
         )}
 
-        {/* Pagination */}
-        <div className="mt-4 flex justify-center items-center gap-4 pt-2 border-t border-slate-900 shrink-0">
-            <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="p-2 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300 transition-colors"><ChevronLeft size={16} /></button>
-            <span className="text-sm text-slate-400">Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{Math.max(1, totalPages)}</span></span>
-            <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages || totalPages === 0} className="p-2 rounded bg-slate-900 border border-slate-800 disabled:opacity-50 hover:bg-slate-800 text-slate-300 transition-colors"><ChevronRight size={16} /></button>
+        {/* Pagination Controls */}
+        <div className="mt-6 flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+            <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+                disabled={currentPage === 1} 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+            >
+                <ChevronLeft size={14} /> Prev
+            </button>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Registry Segment</span>
+                <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
+                <span className="text-[10px] text-slate-500 font-bold">/</span>
+                <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
+            </div>
+            <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
+                disabled={currentPage === totalPages || totalPages === 0} 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+            >
+                Next <ChevronRight size={14} />
+            </button>
         </div>
     </div>
   );
 };
 
-/**
- * AgentAuditModal: 实现 TRACE 溯源功能
- * 展示 Agent 的历史执行记录，并能点击查看详细分析过程。
- */
+// ... AgentAuditModal ...
 const AgentAuditModal: React.FC<{ agent: FlatAgent, onClose: () => void }> = ({ agent, onClose }) => {
     const [selectedRecord, setSelectedRecord] = useState<AgentExecutionRecord | null>(null);
     const history = useMemo(() => generateMockHistory(agent.id), [agent.id]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                
-                {/* Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 lg:p-8 animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                 <div className="p-6 bg-slate-950 border-b border-slate-800 flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-indigo-950/40 border border-indigo-500/20 rounded-xl text-indigo-400">
-                            <History size={24} />
+                    <div className="flex items-center gap-5">
+                        <div className="p-3.5 bg-indigo-950/40 border border-indigo-500/20 rounded-2xl text-indigo-400 shadow-lg shadow-indigo-950/50">
+                            <History size={26} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                                <span className="text-indigo-400">Trace:</span> {agent.name}
+                            <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                <span className="text-indigo-400 opacity-70">AGENT TRACE:</span> {agent.name}
                             </h3>
-                            <div className="text-xs text-slate-500 flex items-center gap-3 mt-1 font-mono uppercase tracking-widest">
-                                <span>Agent ID: {agent.id}</span>
+                            <div className="text-[10px] text-slate-500 flex items-center gap-3 mt-1 font-bold uppercase tracking-[0.2em]">
+                                <span>SEGMENT ID: {agent.id}</span>
                                 <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                <span>Team: {agent.teamName}</span>
+                                <span>SECTOR: {agent.teamName}</span>
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"><X size={24} /></button>
+                    <button onClick={onClose} className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-white transition-all bg-slate-950/50 border border-slate-800"><X size={24} /></button>
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Panel: List of Records */}
-                    <div className={`w-full md:w-1/3 border-r border-slate-800 bg-slate-900/50 flex flex-col transition-all ${selectedRecord ? 'hidden md:flex' : 'flex'}`}>
-                        <div className="p-4 border-b border-slate-800 bg-slate-950/30 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                            Execution Timeline
+                    <div className={`w-full md:w-[320px] border-r border-slate-800 bg-slate-950/30 flex flex-col shrink-0 transition-all ${selectedRecord ? 'hidden md:flex' : 'flex'}`}>
+                        <div className="p-4 border-b border-slate-800 bg-slate-950/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em]">
+                            Transmission Log
                         </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5">
                             {history.map(record => (
                                 <button 
                                     key={record.id}
                                     onClick={() => setSelectedRecord(record)}
-                                    className={`w-full text-left p-4 rounded-xl border transition-all group ${selectedRecord?.id === record.id ? 'bg-indigo-600 border-indigo-500 shadow-lg' : 'bg-slate-950 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'}`}
+                                    className={`w-full text-left p-4 rounded-xl border transition-all group relative overflow-hidden ${selectedRecord?.id === record.id ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-900/20' : 'bg-slate-950/50 border-slate-800/60 hover:border-indigo-500/40 hover:bg-slate-900/50'}`}
                                 >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className={`w-2 h-2 rounded-full ${record.status === 'Success' ? 'bg-green-500' : record.status === 'Warning' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                                            <span className={`text-[10px] font-bold uppercase ${selectedRecord?.id === record.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>{record.status}</span>
+                                    <div className="flex justify-between items-start mb-2 relative z-10">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${record.status === 'Success' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : record.status === 'Warning' ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+                                            <span className={`text-[10px] font-black uppercase tracking-wider ${selectedRecord?.id === record.id ? 'text-white' : 'text-slate-500'}`}>{record.status}</span>
                                         </div>
-                                        <span className={`text-[10px] font-mono ${selectedRecord?.id === record.id ? 'text-indigo-200' : 'text-slate-600'}`}>{new Date(record.startTime).toLocaleDateString()}</span>
+                                        <span className={`text-[9px] font-mono font-bold ${selectedRecord?.id === record.id ? 'text-indigo-200' : 'text-slate-600'}`}>{new Date(record.startTime).toLocaleDateString()}</span>
                                     </div>
-                                    <div className={`text-sm font-bold mb-1 truncate ${selectedRecord?.id === record.id ? 'text-white' : 'text-slate-200'}`}>Target: {record.resourceLabel}</div>
-                                    <div className={`text-[10px] line-clamp-1 italic ${selectedRecord?.id === record.id ? 'text-indigo-100' : 'text-slate-500'}`}>"{record.summary}"</div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                        <div className={`flex items-center gap-1 text-[10px] ${selectedRecord?.id === record.id ? 'text-indigo-200' : 'text-slate-600'}`}>
+                                    <div className={`text-xs font-bold mb-1 truncate relative z-10 ${selectedRecord?.id === record.id ? 'text-white' : 'text-slate-200'}`}>Target: {record.resourceLabel}</div>
+                                    <div className={`text-[10px] line-clamp-1 italic font-medium relative z-10 ${selectedRecord?.id === record.id ? 'text-indigo-100' : 'text-slate-500'}`}>"{record.summary}"</div>
+                                    <div className="mt-3 flex items-center justify-between relative z-10">
+                                        <div className={`flex items-center gap-1.5 text-[9px] font-bold ${selectedRecord?.id === record.id ? 'text-indigo-100' : 'text-slate-600'}`}>
                                             <Clock size={10} /> {(record.duration / 1000).toFixed(1)}s
                                         </div>
-                                        <ArrowRight size={14} className={selectedRecord?.id === record.id ? 'text-white' : 'text-slate-700 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all'} />
+                                        <ArrowRight size={14} className={selectedRecord?.id === record.id ? 'text-white translate-x-0 opacity-100' : 'text-slate-700 opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0'} />
                                     </div>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Right Panel: Trace Details */}
                     <div className="flex-1 flex flex-col bg-slate-950 relative overflow-hidden">
                         {selectedRecord ? (
                             <div className="flex-1 flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
-                                <div className="p-6 border-b border-slate-800 bg-slate-900/30 shrink-0">
-                                    <div className="flex items-center gap-2 md:hidden mb-4">
-                                        <button onClick={() => setSelectedRecord(null)} className="p-1 text-slate-500 hover:text-white"><ChevronLeft size={20} /></button>
-                                        <span className="text-sm font-bold">Execution Details</span>
-                                    </div>
-                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                <div className="p-7 border-b border-slate-800 bg-slate-900/40 shrink-0">
+                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                                         <div>
-                                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Execution Summary</div>
-                                            <h4 className="text-xl font-bold text-white">{selectedRecord.summary}</h4>
+                                            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2">Protocol Result Summary</div>
+                                            <h4 className="text-2xl font-black text-white leading-tight">{selectedRecord.summary}</h4>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-center min-w-[80px]">
-                                                <div className="text-[9px] text-slate-500 uppercase">Duration</div>
-                                                <div className="text-xs font-mono font-bold text-cyan-400">{(selectedRecord.duration / 1000).toFixed(2)}s</div>
+                                        <div className="flex gap-4 shrink-0">
+                                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                                <div className="text-[9px] text-slate-500 font-bold uppercase mb-1">Time to complete</div>
+                                                <div className="text-sm text-white font-mono font-bold tracking-tighter">{(selectedRecord.duration / 1000).toFixed(2)} SEC</div>
                                             </div>
-                                            <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-center min-w-[80px]">
-                                                <div className="text-[9px] text-slate-500 uppercase">Steps</div>
-                                                <div className="text-xs font-mono font-bold text-indigo-400">{selectedRecord.steps.length}</div>
-                                            </div>
+                                            {selectedRecord && (
+                                                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                                    <div className="text-[9px] text-slate-500 font-bold uppercase mb-1">Status</div>
+                                                    <div className={`text-sm font-black uppercase tracking-wider ${selectedRecord.status === 'Success' ? 'text-green-400' : 'text-yellow-400'}`}>{selectedRecord.status}</div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8 bg-[radial-gradient(circle_at_top_right,#0f172a,transparent)]">
                                     {selectedRecord.steps.map((step, idx) => (
-                                        <div key={step.id} className="flex gap-4 group">
+                                        <div key={step.id} className="flex gap-6 group">
                                             <div className="flex flex-col items-center shrink-0">
-                                                <div className={`p-2 rounded-lg border ${
-                                                    step.type === 'thought' ? 'bg-purple-950/30 border-purple-500/30 text-purple-400' :
-                                                    step.type === 'action' ? 'bg-cyan-950/30 border-cyan-500/30 text-cyan-400' :
-                                                    step.type === 'observation' ? 'bg-blue-950/30 border-blue-500/30 text-blue-400' :
-                                                    'bg-green-950/30 border-green-500/30 text-green-400'
+                                                <div className={`p-3 rounded-xl border-2 shadow-lg transition-all ${
+                                                    step.type === 'thought' ? 'bg-purple-950/20 border-purple-500/20 text-purple-400 shadow-purple-950/20' :
+                                                    step.type === 'action' ? 'bg-cyan-950/20 border-cyan-500/20 text-cyan-400 shadow-cyan-950/20' :
+                                                    'bg-blue-950/20 border-blue-500/20 text-blue-400 shadow-blue-950/20'
                                                 }`}>
-                                                    {step.type === 'thought' ? <Brain size={16} /> :
-                                                     step.type === 'action' ? <Terminal size={16} /> :
-                                                     step.type === 'observation' ? <Eye size={16} /> :
-                                                     <CheckCircle2 size={16} />}
+                                                    {step.type === 'thought' ? <Brain size={18} /> : step.type === 'action' ? <Terminal size={18} /> : <Eye size={18} />}
                                                 </div>
-                                                {idx < selectedRecord.steps.length - 1 && (
-                                                    <div className="w-px flex-1 bg-slate-800 my-2"></div>
-                                                )}
+                                                {idx < selectedRecord.steps.length - 1 && <div className="w-0.5 flex-1 bg-slate-800 my-3"></div>}
                                             </div>
-                                            <div className="flex-1 pb-8">
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                                                         step.type === 'thought' ? 'text-purple-400' :
-                                                         step.type === 'action' ? 'text-cyan-400' :
-                                                         step.type === 'observation' ? 'text-blue-400' :
-                                                         'text-green-400'
+                                            <div className="flex-1 pb-10">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                                                        step.type === 'thought' ? 'text-purple-400' : step.type === 'action' ? 'text-cyan-400' : 'text-blue-400'
                                                     }`}>{step.type}</span>
-                                                    <span className="text-[10px] text-slate-600 font-mono">{new Date(step.timestamp).toLocaleTimeString()}</span>
+                                                    <span className="text-[10px] text-slate-600 font-mono font-bold tracking-tight">{new Date(step.timestamp).toLocaleTimeString()}</span>
                                                 </div>
-                                                <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 text-sm text-slate-300 leading-relaxed font-sans shadow-inner group-hover:border-slate-700 transition-colors">
+                                                <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-sm text-slate-200 leading-relaxed font-sans shadow-inner backdrop-blur-sm group-hover:bg-slate-900 transition-colors">
                                                     {step.content}
                                                 </div>
                                             </div>
@@ -431,10 +439,9 @@ const AgentAuditModal: React.FC<{ agent: FlatAgent, onClose: () => void }> = ({ 
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
-                                <History size={64} className="opacity-10 mb-4" />
-                                <p className="text-lg font-bold opacity-30">Select a record to view detailed trace</p>
-                                <p className="text-sm opacity-20 mt-1">Full step-by-step reasoning & tool execution analysis</p>
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-800">
+                                <History size={80} className="mb-6 opacity-10" />
+                                <p className="text-sm font-black uppercase tracking-[0.4em] opacity-40">Awaiting Log Selection</p>
                             </div>
                         )}
                     </div>

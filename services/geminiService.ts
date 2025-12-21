@@ -1,29 +1,21 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { Team, Agent, Topology, TopologyGroup, TopologyNode, ChatMessage } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { Team, Agent, Topology, TopologyGroup, TopologyNode, ChatMessage, DiscoveredDelta } from "../types";
 
 // Helper to simulate typing delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const getMockContent = (specialty?: string): string[] => {
-  const defaults = ["Initializing protocol handshake...", "Scanning local context buffers...", "Heuristic analysis complete."];
-  const contentMap: Record<string, string[]> = {
-    'Query Optimization': ["Analyzing query plans...", "Detected full table scan on 'orders'.", "Index scan density is optimal."],
-    'Error Tracking': ["Parsing error logs...", "Grouping stack traces.", "Found 3 ConnectionTimeoutException."],
-    'Load Analysis': ["Sampling throughput...", "Latency p99 distribution indicates spikes.", "Concurrent pool usage at 45%."]
-  };
-  return contentMap[specialty] || defaults;
-};
-
 export const generateGlobalPlan = async (userRequest: string, topology: Topology, teams: Team[]) => {
   await delay(1500);
   const req = userRequest.toLowerCase();
+  // Simple heuristic plan: assign task to teams whose names appear in the request or related to databases
   const selectedTeams = teams.filter(t => 
     req.includes(t.name.toLowerCase().split(' ')[0]) || 
     (t.name.includes('DB') && (req.includes('database') || req.includes('consistency')))
   );
-  if (selectedTeams.length === 0) selectedTeams.push(teams[0]);
-  return selectedTeams.map(t => ({ teamId: t.id, instruction: `Analyze: "${userRequest}" for ${t.name}.` }));
+  // Default to at least one team if no matches found
+  const finalTeams = selectedTeams.length > 0 ? selectedTeams : [teams[0]];
+  return finalTeams.map(t => ({ teamId: t.id, instruction: `Analyze: "${userRequest}" for ${t.name}.` }));
 };
 
 export const generateTeamDelegation = async (team: Team, instruction: string) => {
@@ -32,11 +24,11 @@ export const generateTeamDelegation = async (team: Team, instruction: string) =>
 };
 
 export async function* streamWorkerTask(agent: Agent, task: string, context: string): AsyncGenerator<string> {
-  const steps = getMockContent(agent.specialty);
   yield `[Task Initiated] Agent: ${agent.name}\nContext: ${context.substring(0, 50)}...\n\n`;
+  const steps = ["Analyzing local context...", "Scanning logs...", "Correlation complete."];
   for (const step of steps) {
-    for (const word of step.split(" ")) { yield word + " "; await delay(30 + Math.random() * 40); }
-    yield "\n"; await delay(300);
+    for (const word of step.split(" ")) { yield word + " "; await delay(40); }
+    yield "\n";
   }
   const r = Math.random();
   yield `\nSUMMARY: {"warnings": ${r < 0.3 ? 1 : 0}, "critical": ${r < 0.1 ? 1 : 0}}`;
@@ -46,59 +38,83 @@ export async function* streamTeamReport(team: Team, instruction: string, workerR
   const lines = [`Reporting for ${team.name}.`, `Directive executed.`, `Aggregated Status: Nominal.`];
   for (const line of lines) {
     for (const word of line.split(" ")) { yield word + " "; await delay(20); }
-    yield "\n"; await delay(100);
+    yield "\n";
   }
 }
 
-// --- Real Gemini Chat Integration ---
+// --- New Discovery Logic ---
+
+export const analyzeInfrastructureDelta = async (rawPayload: string): Promise<DiscoveredDelta> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `As an Infrastructure Scouter, analyze the following raw cluster telemetry (YAML/JSON).
+  Identify any resources or dependencies that are NOT commonly found in a standard setup but present here.
+  Output JSON format.
+  
+  RAW DATA:
+  ${rawPayload}`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          nodes: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                label: { type: Type.STRING },
+                type: { type: Type.STRING }
+                // Fixed: Removed 'properties: { type: Type.OBJECT }' as OBJECT types 
+                // in responseSchema must be non-empty. 
+              },
+              required: ['id', 'label', 'type']
+            }
+          },
+          links: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                source: { type: Type.STRING },
+                target: { type: Type.STRING },
+                type: { type: Type.STRING },
+                confidence: { type: Type.NUMBER }
+              },
+              required: ['source', 'target']
+            }
+          },
+          reasoning: { type: Type.STRING }
+        },
+        required: ['nodes', 'links', 'reasoning']
+      }
+    }
+  });
+
+  try {
+      return JSON.parse(response.text || '{}') as DiscoveredDelta;
+  } catch (e) {
+      console.error("Failed to parse AI discovery result", e);
+      return { nodes: [], links: [], reasoning: "AI output parsing failed." };
+  }
+};
 
 export async function* streamChatResponse(
   prompt: string,
   history: ChatMessage[],
-  context: {
-    nodes: TopologyNode[];
-    groups: TopologyGroup[];
-    allTeams: Team[];
-  }
+  context: { nodes: TopologyNode[]; groups: TopologyGroup[]; allTeams: Team[]; }
 ): AsyncGenerator<string> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  // Format history for Gemini
-  const contents = history.map(msg => ({
-    role: msg.role === 'user' ? 'user' : 'model',
-    parts: [{ text: msg.content }]
-  }));
-
-  // Construct context-rich system instruction
-  const systemInstruction = `You are the EntropyOps Senior AI Orchestrator. 
-You are an interface to a Hierarchical Multi-Agent System that manages distributed infrastructure.
-CURRENT SYSTEM STATE:
-- Total Resources: ${context.nodes.length}
-- Total Topology Groups: ${context.groups.length}
-- Total Agent Teams: ${context.allTeams.length}
-
-Use the technical metadata provided in the user's attachments to give precise advice. 
-If asked to "run" something, explain that they should use the Command Center for formal agent execution.
-Be concise, professional, and use Markdown for technical details.`;
-
-  // Add the current prompt
-  contents.push({
-    role: 'user',
-    parts: [{ text: prompt }]
-  });
-
+  const contents = history.map(msg => ({ role: msg.role === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] }));
+  const systemInstruction = `You are EntropyOps Senior Orchestrator. Total Resources: ${context.nodes.length}.`;
+  contents.push({ role: 'user', parts: [{ text: prompt }] });
   try {
-    const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-pro-preview',
-      contents,
-      config: { systemInstruction }
-    });
-
-    for await (const chunk of responseStream) {
-      if (chunk.text) yield chunk.text;
-    }
-  } catch (error) {
-    console.error("Gemini Chat Error:", error);
-    yield "I encountered an error connecting to the neural core. Please check your system configuration.";
-  }
+    const responseStream = await ai.models.generateContentStream({ model: 'gemini-3-pro-preview', contents, config: { systemInstruction } });
+    for await (const chunk of responseStream) { if (chunk.text) yield chunk.text; }
+  } catch (error) { yield "Neural core connection error."; }
 }
