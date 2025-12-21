@@ -144,6 +144,7 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [userQuery, setUserQuery] = useState("Analyze system state and health status.");
   const [isSimulating, setIsSimulating] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<{ agentId: string; ts: number } | null>(null);
   const abortRef = useRef(false);
   
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
@@ -739,7 +740,7 @@ const App: React.FC = () => {
                       <span>Hierarchy Stack</span>
                       {diagnosisScope && <button onClick={() => setDiagnosisScope(null)} className="text-cyan-400 hover:text-white transition-colors">Global View</button>}
                   </div>
-                  <AgentHierarchy globalAgent={globalAgent} teams={activeTeams} activeTeamIds={new Set()} onAgentClick={() => {}} />
+                  <AgentHierarchy globalAgent={globalAgent} teams={activeTeams} activeTeamIds={new Set()} onAgentClick={(agentId) => setFocusTarget({ agentId, ts: Date.now() })} />
               </aside>
               {/* 左侧拖拽分隔条 */}
               <div
@@ -754,7 +755,7 @@ const App: React.FC = () => {
                       </div>
                       {diagnosisScope && <div className="text-[9px] px-2 py-0.5 rounded bg-indigo-950/40 border border-indigo-500/30 text-indigo-300 font-bold uppercase">Focus: {diagnosisScope.name}</div>}
                   </div>
-                  <div className="flex-1 overflow-hidden"><LogStream logs={logs} focusTarget={null} /></div>
+                  <div className="flex-1 overflow-hidden"><LogStream logs={logs} focusTarget={focusTarget} /></div>
                   <div className="p-4 bg-slate-900/50 border-t border-slate-800 flex items-center gap-3">
                       <div className="flex-1 flex items-center gap-3 bg-slate-950 border border-slate-700 rounded-xl px-4">
                           <Sparkles size={16} className="text-cyan-500" />
