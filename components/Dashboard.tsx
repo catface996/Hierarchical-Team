@@ -45,8 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     const workerWarnings = team.members.reduce((s: number, m: Agent): number => s + Number(m.findings?.warnings || 0), 0);
     const workerCritical = team.members.reduce((s: number, m: Agent): number => s + Number(m.findings?.critical || 0), 0);
     
-    const teamWarnings = supervisorWarnings + workerWarnings;
-    const teamCritical = supervisorCritical + workerCritical;
+    const teamWarnings = Number(supervisorWarnings) + Number(workerWarnings);
+    const teamCritical = Number(supervisorCritical) + Number(workerCritical);
     
     if (teamCritical > 0) {
       acc.critical += 1;
@@ -111,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Warnings</div>
           <div className="text-3xl font-bold text-yellow-400">{stats.warning}</div>
-          <div className="text-xs text-yellow-500/70 mt-2">Potential optimizations</div>
+          <div className="text-xs text-green-500/70 mt-2">Potential optimizations</div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 relative overflow-hidden group hover:border-red-500/30 transition-colors">
@@ -148,7 +148,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                               type === 'Gateway' ? 'bg-pink-500' :
                               type === 'Cache' ? 'bg-orange-500' : 'bg-blue-500'
                            }`}
-                           style={{ width: `${totalNodes > 0 ? (count / totalNodes) * 100 : 0}%` }}
+                           style={{ width: `${totalNodes > 0 ? (Number(count) / totalNodes) * 100 : 0}%` }}
                          ></div>
                       </div>
                    </div>
@@ -171,12 +171,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                    const workerIssues = team.members.reduce((sum: number, member: Agent): number => {
                      const w = Number(member.findings?.warnings || 0);
                      const c = Number(member.findings?.critical || 0);
-                     return sum + w + c;
+                     // Added explicit Number conversion for sum and operands to avoid arithmetic type errors
+                     return Number(sum) + Number(w) + Number(c);
                    }, 0);
                    
                    // Calculate total issues for status display
-                   const totalIssues = supervisorWarnings + supervisorCritical + workerIssues;
-                   const isCrit = supervisorCritical > 0 || team.members.some(m => Number(m.findings?.critical || 0) > 0);
+                   const totalIssues = Number(supervisorWarnings) + Number(supervisorCritical) + Number(workerIssues);
+                   const isCrit = Number(supervisorCritical) > 0 || team.members.some(m => Number(m.findings?.critical || 0) > 0);
                    const isWarn = !isCrit && totalIssues > 0;
                    
                    return (

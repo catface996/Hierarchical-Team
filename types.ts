@@ -64,7 +64,7 @@ export interface TopologyNode {
   x?: number;
   y?: number;
   properties?: Record<string, string>;
-  isShadow?: boolean; // 新增：是否为自动发现但未确认的节点
+  isShadow?: boolean; 
 }
 
 export type LinkType = 'call' | 'deployment' | 'dependency' | 'inferred';
@@ -73,7 +73,7 @@ export interface TopologyLink {
   source: string;
   target: string;
   type?: LinkType;
-  confidence?: number; // 0-1 AI 推断置信度
+  confidence?: number; 
   metadata?: any;
 }
 
@@ -97,7 +97,6 @@ export interface DiscoveredDelta {
   reasoning: string;
 }
 
-// ... 其余接口保持不变
 export interface TopologyGroup {
   id: string;
   name: string;
@@ -106,6 +105,7 @@ export interface TopologyGroup {
   createdAt: string;
   tags?: string[];
   nodeIds: string[];
+  templateIds?: string[]; // 新增：绑定的模板 ID 列表
 }
 
 export interface DiagnosisSession {
@@ -149,7 +149,7 @@ export interface ReportTemplate {
   name: string;
   description: string;
   category: 'Incident' | 'Performance' | 'Security' | 'Audit';
-  content: string; // Markdown
+  content: string; 
   tags: string[];
   updatedAt: number;
 }
@@ -181,11 +181,9 @@ export interface Report {
   summary: string;
   content: string;
   tags: string[];
+  topologyId?: string; // 可选：关联的拓扑
 }
 
-/**
- * Added missing interfaces for agent execution history tracking.
- */
 export interface TraceStep {
   id: string;
   timestamp: number;

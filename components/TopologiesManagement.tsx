@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import { TopologyGroup } from '../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { TopologyGroup, ReportTemplate } from '../types';
+import { INITIAL_REPORT_TEMPLATES } from '../services/mockData';
 import { 
   Search, 
   Plus, 
@@ -22,7 +23,10 @@ import {
   LayoutGrid,
   ArrowUpRight,
   Settings,
-  Sparkles
+  Sparkles,
+  FileText,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 interface TopologiesManagementProps {
@@ -168,9 +172,7 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
                     onClick={() => onEnter(tg.id)}
                     className={`relative bg-slate-900 border rounded-xl transition-all cursor-pointer flex flex-col min-h-[220px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-cyan-950/10 ${isActive ? 'border-indigo-500/50 bg-indigo-950/10 shadow-indigo-900/10' : 'border-slate-800/80 hover:border-cyan-500/40 hover:bg-slate-800/40'}`}
                   >
-                    {/* Decorative Top Line */}
                     <div className={`h-1 w-full ${isActive ? 'bg-indigo-600' : 'bg-slate-700'} opacity-30 group-hover:opacity-100 transition-opacity`}></div>
-
                     <div className="p-5 flex flex-col flex-1">
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-2 rounded-lg ${isActive ? 'bg-indigo-950/30 text-indigo-400 border border-indigo-500/20' : 'bg-slate-950 text-cyan-500 border border-slate-800'}`}>
@@ -187,12 +189,10 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
                                 )}
                             </div>
                         </div>
-
                         <div className="mb-4">
                             <h3 className={`text-base font-bold mb-0.5 truncate transition-colors leading-tight ${isActive ? 'text-indigo-300' : 'text-white group-hover:text-cyan-400'}`}>{tg.name}</h3>
                             <div className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] opacity-80 line-clamp-1">{tg.description}</div>
                         </div>
-
                         <div className="flex-1">
                             <div className="flex flex-wrap gap-1.5">
                                 {tg.tags?.slice(0, 3).map((tag, i) => (
@@ -200,10 +200,13 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
                                         {tag}
                                     </span>
                                 ))}
+                                {tg.templateIds && tg.templateIds.length > 0 && (
+                                     <span className="px-2 py-0.5 rounded bg-indigo-900/30 border border-indigo-500/30 text-[9px] font-bold text-indigo-400 uppercase tracking-tighter flex items-center gap-1">
+                                         <FileText size={8} /> {tg.templateIds.length} TEMPLATES
+                                     </span>
+                                )}
                             </div>
                         </div>
-
-                        {/* Professional Footer */}
                         <div className="mt-5 pt-4 border-t border-slate-800/40 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-1">
                                 <button onClick={(e) => { e.stopPropagation(); openDetailModal(tg); }} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="View Intelligence Profile"><Eye size={15} /></button>
@@ -314,6 +317,110 @@ const TopologiesManagement: React.FC<TopologiesManagementProps> = ({
   );
 };
 
+// --- Sub-component: Multi-Select Dropdown for Templates ---
+
+const TemplateMultiSelect: React.FC<{
+    selectedIds: string[],
+    onChange: (ids: string[]) => void
+}> = ({ selectedIds, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [filter, setFilter] = useState('');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const filteredTemplates = useMemo(() => {
+        return INITIAL_REPORT_TEMPLATES.filter(t => 
+            t.name.toLowerCase().includes(filter.toLowerCase()) ||
+            t.category.toLowerCase().includes(filter.toLowerCase())
+        );
+    }, [filter]);
+
+    const toggleId = (id: string) => {
+        const next = selectedIds.includes(id) 
+            ? selectedIds.filter(x => x !== id) 
+            : [...selectedIds, id];
+        onChange(next);
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <div 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full bg-slate-950 border rounded-lg p-2.5 flex items-center justify-between cursor-pointer transition-all ${isOpen ? 'border-cyan-500 ring-1 ring-cyan-500/20' : 'border-slate-700 hover:border-slate-600'}`}
+            >
+                <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                    {selectedIds.length > 0 ? (
+                        selectedIds.map(id => {
+                            const tpl = INITIAL_REPORT_TEMPLATES.find(x => x.id === id);
+                            return (
+                                <div key={id} className="flex items-center gap-1 bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-500/30">
+                                    {tpl?.name || id}
+                                    <X size={10} className="cursor-pointer hover:text-white" onClick={(e) => { e.stopPropagation(); toggleId(id); }} />
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <span className="text-slate-500 text-sm">Select one or more blueprints...</span>
+                    )}
+                </div>
+                <ChevronDown size={16} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-[60] w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-2 border-b border-slate-800 bg-slate-950/50">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2 text-slate-500" size={14} />
+                            <input 
+                                type="text"
+                                autoFocus
+                                value={filter}
+                                onChange={e => setFilter(e.target.value)}
+                                placeholder="Search templates..."
+                                className="w-full bg-slate-900 border border-slate-700 rounded-md py-1.5 pl-8 pr-3 text-xs text-white outline-none focus:border-cyan-500"
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                        {filteredTemplates.length > 0 ? (
+                            filteredTemplates.map(tpl => {
+                                const isSelected = selectedIds.includes(tpl.id);
+                                return (
+                                    <div 
+                                        key={tpl.id}
+                                        onClick={() => toggleId(tpl.id)}
+                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-indigo-900/20 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <div className="text-xs font-bold truncate">{tpl.name}</div>
+                                                <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-slate-700 bg-slate-950 text-slate-500">{tpl.category}</span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 truncate mt-0.5">{tpl.description}</div>
+                                        </div>
+                                        {isSelected && <Check size={14} className="text-cyan-400 shrink-0 ml-2" />}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="p-4 text-center text-xs text-slate-600 italic">No templates found.</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const TopologyFormModal: React.FC<{ 
   tg: TopologyGroup | null, 
   onClose: () => void, 
@@ -326,14 +433,16 @@ const TopologyFormModal: React.FC<{
     nodeCount: 0,
     createdAt: new Date().toISOString(),
     tags: [],
-    nodeIds: []
+    nodeIds: [],
+    templateIds: []
   });
   const [tagInput, setTagInput] = useState('');
   const handleAddTag = () => { if (tagInput.trim()) { const newTags = formData.tags ? [...formData.tags, tagInput.trim()] : [tagInput.trim()]; setFormData({ ...formData, tags: newTags }); setTagInput(''); } };
   const removeTag = (idx: number) => { const newTags = formData.tags?.filter((_, i) => i !== idx); setFormData({ ...formData, tags: newTags }); };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border-t-4 border-t-cyan-600 flex flex-col max-h-[90vh]">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border-t-4 border-t-cyan-600 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-5 bg-slate-950/50 border-b border-slate-800">
                 <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-widest">
                     <Sparkles size={16} className="text-cyan-400" /> {tg ? 'Modify topology map' : 'Define new topology'}
@@ -350,11 +459,24 @@ const TopologyFormModal: React.FC<{
                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
                         <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none resize-none transition-all" placeholder="Outline the purpose of this logical grouping..." />
                     </div>
+
+                    {/* Improved Template Binding Section */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <FileText size={12} /> Bind Report Blueprints
+                        </label>
+                        <TemplateMultiSelect 
+                            selectedIds={formData.templateIds || []} 
+                            onChange={(ids) => setFormData({ ...formData, templateIds: ids })} 
+                        />
+                        <div className="mt-1.5 text-[9px] text-slate-500 italic">Bind templates to enable one-click synthesis after topological diagnosis.</div>
+                    </div>
+
                     <div>
                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags</label>
                         <div className="flex gap-2 mb-2">
                             <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-cyan-500/50 outline-none" placeholder="Press enter to add..." />
-                            <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all">ADD</button>
+                            <button type="button" onClick={handleAddTag} className="px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all uppercase tracking-widest">ADD</button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {formData.tags?.map((tag, idx) => (
@@ -404,15 +526,18 @@ const TopologyDetailModal: React.FC<{ tg: TopologyGroup, onClose: () => void }> 
                     </div>
                 </div>
 
-                {tg.tags && tg.tags.length > 0 && (
+                {tg.templateIds && tg.templateIds.length > 0 && (
                     <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-800">
-                        <div className="text-[9px] text-slate-500 font-bold uppercase mb-3 tracking-widest">System Tags</div>
-                        <div className="flex flex-wrap gap-2">
-                            {tg.tags.map((tag, i) => (
-                                <span key={i} className="px-2 py-1 rounded bg-slate-800/50 text-[10px] font-bold text-slate-300 border border-slate-700/50 uppercase tracking-tighter">
-                                    {tag}
-                                </span>
-                            ))}
+                        <div className="text-[9px] text-slate-500 font-bold uppercase mb-3 tracking-widest flex items-center gap-2"><FileText size={10}/> Bound Templates</div>
+                        <div className="space-y-1.5">
+                            {tg.templateIds.map(id => {
+                                const tpl = INITIAL_REPORT_TEMPLATES.find(x => x.id === id);
+                                return (
+                                    <div key={id} className="text-xs text-indigo-300 bg-indigo-950/40 p-2 rounded border border-indigo-900/30 font-bold">
+                                        {tpl?.name || id}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

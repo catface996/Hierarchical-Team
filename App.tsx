@@ -25,13 +25,15 @@ import {
   DiscoverySource,
   TopologyLink,
   AgentRole,
-  Report
+  Report,
+  ReportTemplate
 } from './types';
 import { 
   analyzeInfrastructureDelta,
   generateGlobalPlan,
   generateTeamDelegation,
-  streamWorkerTask
+  streamWorkerTask,
+  generateStructuredReport
 } from './services/geminiService';
 import TopologyGraph from './components/TopologyGraph';
 import AgentHierarchy from './components/AgentHierarchy';
@@ -47,7 +49,7 @@ import ReportDetailView from './components/ReportDetailView';
 import DiscoveryManagement from './components/DiscoveryManagement';
 import DiscoveryInbox from './components/DiscoveryInbox';
 import { SettingsModal, AppSettings } from './components/SettingsModal';
-import { Activity, Database, Network, FileText, LogOut, Settings, Play, Home, Radar, Users, Sparkles, X } from 'lucide-react';
+import { Activity, Database, Network, FileText, LogOut, Settings, Play, Home, Radar, Users, Sparkles, X, FileSearch, Check, Wand2 } from 'lucide-react';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -64,6 +66,9 @@ const App: React.FC = () => {
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [diagnosisScope, setDiagnosisScope] = useState<TopologyGroup | null>(null);
+
+  // 报告生成状态
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // 数据状态
   const [topology, setTopology] = useState(INITIAL_TOPOLOGY);
@@ -88,7 +93,6 @@ const App: React.FC = () => {
     }));
   }, [topology]);
 
-  // 重要修复：Agent 列表受当前 Scope 驱动
   const activeTeams = useMemo(() => {
       if (!diagnosisScope) return teams;
       return teams.filter(t => diagnosisScope.nodeIds.includes(t.resourceId));
@@ -162,6 +166,12 @@ const App: React.FC = () => {
     setIsSimulating(false);
   };
 
+  const handleCreateFinalReport = (newReport: Report) => {
+      setReports(prev => [...prev, newReport]);
+      setCurrentView('reports');
+      setIsGeneratingReport(false);
+  };
+
   const handleScan = async (sourceId: string) => {
     const source = discoverySources.find(s => s.id === sourceId);
     if (!source) return;
@@ -229,7 +239,7 @@ const App: React.FC = () => {
       default:
         return (
           <div className="flex-1 flex h-full overflow-hidden">
-              <aside style={{ width: leftSidebarWidth }} className="border-r border-slate-800 bg-slate-900/20 p-2 overflow-y-auto custom-scrollbar">
+              <aside style={{ width: leftSidebarWidth }} className="border-r border-slate-800 bg-slate-900/20 p-2 overflow-y-auto custom-scrollbar text-xs">
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 py-2 flex justify-between items-center">
                       <span>Hierarchy Stack</span>
                       {diagnosisScope && <button onClick={() => setDiagnosisScope(null)} className="text-cyan-400 hover:text-white transition-colors">Global View</button>}
@@ -250,7 +260,20 @@ const App: React.FC = () => {
                           <Sparkles size={16} className="text-cyan-500" />
                           <input className="flex-1 h-12 bg-transparent text-sm text-slate-200 focus:outline-none" value={userQuery} onChange={e => setUserQuery(e.target.value)} placeholder="Submit directive for hierarchical execution..." />
                       </div>
-                      <button onClick={handleExecuteDiagnosis} disabled={isSimulating} className="h-12 px-8 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95"><Play size={14} fill="currentColor" /> EXECUTE</button>
+                      
+                      <div className="flex gap-2">
+                          {logs.length > 0 && !isSimulating && diagnosisScope && (
+                             <button 
+                                onClick={() => setIsGeneratingReport(true)}
+                                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95"
+                             >
+                                <FileSearch size={14} /> GENERATE REPORT
+                             </button>
+                          )}
+                          <button onClick={handleExecuteDiagnosis} disabled={isSimulating} className="h-12 px-8 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95">
+                            <Play size={14} fill="currentColor" /> EXECUTE
+                          </button>
+                      </div>
                   </div>
               </section>
               <aside style={{ width: rightSidebarWidth }} className="border-l border-slate-800 bg-slate-900/20 relative">
@@ -296,8 +319,141 @@ const App: React.FC = () => {
       </header>
       <main className="flex-1 overflow-hidden relative">{renderMainContent()}</main>
       {isSettingsOpen && <SettingsModal settings={appSettings} onClose={() => setIsSettingsOpen(false)} onSave={(s) => { setAppSettings(s); setIsSettingsOpen(false); }} />}
+      {isGeneratingReport && diagnosisScope && (
+          <ReportGenerationModal 
+            topology={diagnosisScope} 
+            logs={logs} 
+            query={userQuery}
+            onClose={() => setIsGeneratingReport(false)} 
+            onSave={handleCreateFinalReport} 
+          />
+      )}
     </div>
   );
+};
+
+// --- Report Generation Modal Helper ---
+
+const ReportGenerationModal: React.FC<{ 
+    topology: TopologyGroup, 
+    logs: LogMessage[], 
+    query: string,
+    onClose: () => void, 
+    onSave: (report: Report) => void 
+}> = ({ topology, logs, query, onClose, onSave }) => {
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(topology.templateIds?.[0] || null);
+    const [isThinking, setIsThinking] = useState(false);
+    const [previewContent, setPreviewContent] = useState<string | null>(null);
+
+    const boundTemplates = useMemo(() => {
+        return INITIAL_REPORT_TEMPLATES.filter(tpl => topology.templateIds?.includes(tpl.id));
+    }, [topology.templateIds]);
+
+    const handleGeneratePreview = async () => {
+        const tpl = INITIAL_REPORT_TEMPLATES.find(x => x.id === selectedTemplateId);
+        if (!tpl) return;
+        
+        setIsThinking(true);
+        const content = await generateStructuredReport(tpl, logs, topology, query);
+        setPreviewContent(content);
+        setIsThinking(false);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-5 bg-slate-950/80 border-b border-slate-800 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-950/40 rounded-xl text-indigo-400 border border-indigo-500/20 shadow-lg">
+                            <Wand2 size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white">AI Report Synthesis</h3>
+                            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Context: {topology.name}</div>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={24} /></button>
+                </div>
+
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Left: Template Selector */}
+                    <div className="w-72 border-r border-slate-800 bg-slate-950/30 p-5 flex flex-col overflow-y-auto">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 block">Select bound template</label>
+                        <div className="space-y-2">
+                            {boundTemplates.length > 0 ? boundTemplates.map(tpl => (
+                                <button 
+                                    key={tpl.id}
+                                    onClick={() => setSelectedTemplateId(tpl.id)}
+                                    className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTemplateId === tpl.id ? 'bg-indigo-600 border-indigo-500 shadow-xl' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
+                                >
+                                    <div className={`text-xs font-bold ${selectedTemplateId === tpl.id ? 'text-white' : 'text-slate-300'}`}>{tpl.name}</div>
+                                    <div className={`text-[9px] mt-1 line-clamp-2 ${selectedTemplateId === tpl.id ? 'text-indigo-100' : 'text-slate-500'}`}>{tpl.description}</div>
+                                </button>
+                            )) : (
+                                <div className="p-4 bg-red-950/20 border border-red-900/30 rounded text-[10px] text-red-400 italic font-bold">
+                                    No templates bound to this topology. Go to Management to link schemas.
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedTemplateId && !previewContent && !isThinking && (
+                            <button 
+                                onClick={handleGeneratePreview}
+                                className="mt-8 w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-cyan-900/20 flex items-center justify-center gap-2"
+                            >
+                                <Sparkles size={14} /> Synthesize Logic
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Right: Preview Area */}
+                    <div className="flex-1 flex flex-col bg-slate-950 relative overflow-hidden">
+                        {isThinking ? (
+                            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                                <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Engaging neural core for synthesis...</p>
+                            </div>
+                        ) : previewContent ? (
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar prose prose-invert prose-sm max-w-none">
+                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-6 pb-2 border-b border-slate-800">Draft Document Generated</div>
+                                <div className="font-sans leading-relaxed text-slate-300 whitespace-pre-wrap">{previewContent}</div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-800">
+                                <FileSearch size={64} className="mb-4 opacity-10" />
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Ready for Synthesis</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-5 bg-slate-950/80 border-t border-slate-800 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-6 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold">Cancel</button>
+                    <button 
+                        disabled={!previewContent}
+                        onClick={() => {
+                            const tpl = INITIAL_REPORT_TEMPLATES.find(x => x.id === selectedTemplateId);
+                            onSave({
+                                id: `rep-${Date.now()}`,
+                                title: `${topology.name} - Post Diagnosis Audit`,
+                                type: tpl?.category === 'Security' ? 'Security' : 'Diagnosis',
+                                status: 'Final',
+                                createdAt: Date.now(),
+                                author: 'AI Orchestrator',
+                                summary: `Automated synthesis report based on inquiry: "${query}"`,
+                                content: previewContent || '',
+                                tags: ['Automated', 'Diagnosis', topology.name],
+                                topologyId: topology.id
+                            });
+                        }}
+                        className="px-8 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-30 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-2"
+                    >
+                        <Check size={16} /> Finalize & Store Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default App;

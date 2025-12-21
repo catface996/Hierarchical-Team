@@ -1,7 +1,6 @@
 
 import { Topology, Team, Agent, AgentRole, AgentStatus, TopologyGroup, PromptTemplate, AIModel, AgentTool, Report, DiagnosisSession, AgentExecutionRecord, TraceStep, ReportTemplate, DiscoverySource } from '../types';
 
-// ... (现有 INITIAL_DISCOVERY_SOURCES 和 RAW_SCAN_PAYLOADS 保持不变)
 export const INITIAL_DISCOVERY_SOURCES: DiscoverySource[] = [
   { id: 'src-k8s-prod', name: 'Production K8s Cluster', type: 'K8s', endpoint: 'https://api.k8s.prod.entropy.io', status: 'Connected', lastScan: Date.now() - 3600000 },
   { id: 'src-prom-global', name: 'Global Prometheus', type: 'Prometheus', endpoint: 'http://prometheus.monitoring:9090', status: 'Connected', lastScan: Date.now() - 86400000 },
@@ -87,8 +86,8 @@ export const INITIAL_TOPOLOGY: Topology = {
 };
 
 export const INITIAL_TOPOLOGY_GROUPS: TopologyGroup[] = [
-  { id: 'sg-payment-flow', name: 'Payment Processing Flow', description: 'Core transaction path including Gateway, Payment Service, and Order DB.', nodeCount: 3, createdAt: '2023-10-15T08:30:00Z', tags: ['Critical', 'Finance'], nodeIds: ['gateway-01', 'payment-svc', 'order-db'] },
-  { id: 'sg-auth-cluster', name: 'Authentication Cluster', description: 'User session management and token verification infrastructure.', nodeCount: 2, createdAt: '2023-11-02T14:15:00Z', tags: ['Security'], nodeIds: ['auth-svc', 'redis-cache'] },
+  { id: 'sg-payment-flow', name: 'Payment Processing Flow', description: 'Core transaction path including Gateway, Payment Service, and Order DB.', nodeCount: 3, createdAt: '2023-10-15T08:30:00Z', tags: ['Critical', 'Finance'], nodeIds: ['gateway-01', 'payment-svc', 'order-db'], templateIds: ['rtp-01', 'rtp-02'] },
+  { id: 'sg-auth-cluster', name: 'Authentication Cluster', description: 'User session management and token verification infrastructure.', nodeCount: 2, createdAt: '2023-11-02T14:15:00Z', tags: ['Security'], nodeIds: ['auth-svc', 'redis-cache'], templateIds: ['rtp-01'] },
   { id: 'sg-edge-global', name: 'Global Edge Network', description: 'CDN nodes and initial entry points for global traffic.', nodeCount: 2, createdAt: '2023-11-05T09:00:00Z', tags: ['Edge', 'Networking'], nodeIds: ['cdn-edge', 'web-client'] },
   { id: 'sg-analytics', name: 'Big Data Pipeline', description: 'Kafka streams feeding into the Snowflake Data Warehouse.', nodeCount: 2, createdAt: '2023-11-10T11:20:00Z', tags: ['Data', 'ETL'], nodeIds: ['event-stream', 'analytics-dw'] },
   { id: 'sg-ai-fraud', name: 'AI Fraud Detection', description: 'Real-time inference stack for identifying suspicious transactions.', nodeCount: 2, createdAt: '2023-11-12T16:45:00Z', tags: ['ML', 'Security'], nodeIds: ['ml-model-v1', 'payment-svc'] }

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Team, Agent, Topology, TopologyGroup, TopologyNode, ChatMessage, DiscoveredDelta } from "../types";
+import { Team, Agent, Topology, TopologyGroup, TopologyNode, ChatMessage, DiscoveredDelta, ReportTemplate, LogMessage } from "../types";
 
 // Helper to simulate typing delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -8,12 +8,10 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const generateGlobalPlan = async (userRequest: string, topology: Topology, teams: Team[]) => {
   await delay(1500);
   const req = userRequest.toLowerCase();
-  // Simple heuristic plan: assign task to teams whose names appear in the request or related to databases
   const selectedTeams = teams.filter(t => 
     req.includes(t.name.toLowerCase().split(' ')[0]) || 
     (t.name.includes('DB') && (req.includes('database') || req.includes('consistency')))
   );
-  // Default to at least one team if no matches found
   const finalTeams = selectedTeams.length > 0 ? selectedTeams : [teams[0]];
   return finalTeams.map(t => ({ teamId: t.id, instruction: `Analyze: "${userRequest}" for ${t.name}.` }));
 };
@@ -34,15 +32,46 @@ export async function* streamWorkerTask(agent: Agent, task: string, context: str
   yield `\nSUMMARY: {"warnings": ${r < 0.3 ? 1 : 0}, "critical": ${r < 0.1 ? 1 : 0}}`;
 }
 
-export async function* streamTeamReport(team: Team, instruction: string, workerResults: any[]): AsyncGenerator<string> {
-  const lines = [`Reporting for ${team.name}.`, `Directive executed.`, `Aggregated Status: Nominal.`];
-  for (const line of lines) {
-    for (const word of line.split(" ")) { yield word + " "; await delay(20); }
-    yield "\n";
-  }
-}
+export const generateStructuredReport = async (
+    template: ReportTemplate, 
+    logs: LogMessage[], 
+    topology: TopologyGroup,
+    query: string
+): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // 提取日志中的核心发现
+    const findings = logs
+        .filter(l => l.type === 'report' || l.type === 'thought')
+        .map(l => `${l.fromAgentName}: ${l.content}`)
+        .join('\n\n');
 
-// --- New Discovery Logic ---
+    const prompt = `As a Senior EntropyOps Orchestrator, synthesize the following diagnosis session into a formal report using the provided Markdown Template.
+    
+    CONTEXT:
+    - User Inquiry: ${query}
+    - Topology Focus: ${topology.name}
+    - Collaborating Units: ${topology.nodeCount} Agents
+    
+    COLLABORATION LOGS:
+    ${findings}
+
+    MARKDOWN TEMPLATE:
+    ${template.content}
+
+    INSTRUCTIONS:
+    1. Fill in all placeholders like {{...}} with inferred data from the logs.
+    2. Maintain the structure of the template.
+    3. If visual charts are defined in the template (Mermaid or JSON charts), ensure they accurately reflect the data trends discussed in logs.
+    4. Output ONLY the finalized Markdown content.`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt
+    });
+
+    return response.text || "Report generation failed.";
+};
 
 export const analyzeInfrastructureDelta = async (rawPayload: string): Promise<DiscoveredDelta> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -70,8 +99,6 @@ export const analyzeInfrastructureDelta = async (rawPayload: string): Promise<Di
                 id: { type: Type.STRING },
                 label: { type: Type.STRING },
                 type: { type: Type.STRING }
-                // Fixed: Removed 'properties: { type: Type.OBJECT }' as OBJECT types 
-                // in responseSchema must be non-empty. 
               },
               required: ['id', 'label', 'type']
             }
