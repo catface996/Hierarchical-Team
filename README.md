@@ -6,7 +6,7 @@
 
 ### From Decision Optimization to Business Operations and AIOps
 
-**运筹 · 运营 · 运维 — 智能一体化**
+**Decision Optimization · Business Operations · AIOps — Unified Intelligence**
 
 [![React](https://img.shields.io/badge/React-18.2.0-61DAFB?logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -24,9 +24,9 @@ EntropyOPStack is a next-generation **AI-Driven Operations Stack** that unifies 
 
 | Layer | Domain | Focus |
 |-------|--------|-------|
-| **Decision Optimization** | 运筹 (Operations Research) | Resource allocation, scheduling, capacity planning |
-| **Business Operations** | 运营 (Business Ops) | KPIs, user journey, conversion, business impact |
-| **AIOps** | 运维 (IT Operations) | Infrastructure monitoring, diagnostics, automation |
+| **Decision Optimization** | Operations Research | Resource allocation, scheduling, capacity planning |
+| **Business Operations** | Business Ops | KPIs, user journey, conversion, business impact |
+| **AIOps** | IT Operations | Infrastructure monitoring, diagnostics, automation |
 
 By leveraging a **hierarchical multi-agent collaboration system**, EntropyOPStack bridges the gap between business strategy, operational execution, and technical infrastructure.
 
@@ -43,7 +43,7 @@ Unlike traditional infrastructure monitoring tools, EntropyOPStack provides:
 
 ## The Three Pillars
 
-### 1. AI Operations Research (运筹)
+### 1. AI Operations Research
 
 <div align="center">
 <img src="doc/images/AI-Operation-Research.png" alt="AI Operations Research" width="100%" />
@@ -53,7 +53,7 @@ Unlike traditional infrastructure monitoring tools, EntropyOPStack provides:
 
 ---
 
-### 2. AI Business Operations (运营)
+### 2. AI Business Operations
 
 <div align="center">
 <img src="doc/images/AI-Business-Operation.png" alt="AI Business Operations" width="100%" />
@@ -63,7 +63,7 @@ Unlike traditional infrastructure monitoring tools, EntropyOPStack provides:
 
 ---
 
-### 3. AIOps (运维)
+### 3. AIOps
 
 <div align="center">
 <img src="doc/images/AIOps.png" alt="AIOps" width="100%" />
@@ -360,10 +360,10 @@ EntropyOPStack is evolving into a comprehensive **AI Operations Research · Busi
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    AI 运筹·运营·运维 一体化平台                           │
+│                 AI-Driven Unified Operations Platform                   │
 ├─────────────────────┬─────────────────────┬─────────────────────────────┤
-│      运筹 (OR)      │      运营 (Biz)     │         运维 (Ops)          │
-│  Decision & Optim.  │  Business Metrics   │     IT Operations          │
+│   Decision Optim.   │   Business Ops      │         AIOps               │
+│  Resource Planning  │  Business Metrics   │     IT Operations           │
 ├─────────────────────┴─────────────────────┴─────────────────────────────┤
 │                         AI Decision Engine                              │
 ├─────────────────────────────────────────────────────────────────────────┤
