@@ -277,6 +277,7 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
               <div>
                 <div className="text-xs text-slate-500">Resource Type</div>
                 <div className="text-sm text-white">{resource.resourceTypeName}</div>
+                <div className="text-xs text-slate-500 font-mono">{resource.resourceTypeCode}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -455,7 +456,10 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
                 <span className="text-2xl font-bold text-white">{resource.name}</span>
                 <span className={`text-sm font-bold ${statusConfig.color}`}>{statusConfig.label}</span>
               </div>
-              <div className="text-xs text-slate-500 uppercase tracking-widest mt-1">{resource.resourceTypeName}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-widest mt-1">
+                {resource.resourceTypeName}
+                <span className="ml-2 text-slate-600 font-mono">({resource.resourceTypeCode})</span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">

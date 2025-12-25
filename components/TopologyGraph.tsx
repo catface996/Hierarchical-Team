@@ -433,8 +433,9 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
       layerNodeMap.get(layer)?.push(d);
     });
 
-    // Determine which layers have nodes
-    const activeLayers = LAYER_ORDER.filter(l => (layerNodeMap.get(l)?.length || 0) > 0);
+    // Always show all layers (not just those with nodes)
+    // This ensures consistent visualization for both topology views and resource node views
+    const activeLayers = [...LAYER_ORDER];
 
     // Track layer heights (can be expanded during drag)
     const layerHeights = new Map<TopologyLayer, number>();
