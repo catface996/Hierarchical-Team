@@ -18,11 +18,16 @@ import {
   Bot,
   History,
   Info,
-  Plus
+  Plus,
+  X,
+  Check
 } from 'lucide-react';
-import { resourceApi, getResourceTypeIcon, getStatusConfig } from '../services/api/resources';
+import { resourceApi, getResourceTypeIcon, getStatusConfig, STATUS_CONFIG } from '../services/api/resources';
 import { useResourceAuditLogs } from '../services/hooks/useResourceAuditLogs';
-import type { ResourceDTO } from '../services/api/types';
+import { useResourceTypes } from '../services/hooks/useResourceTypes';
+import { ApiError } from '../services/api/client';
+import type { ResourceDTO, ResourceStatus, UpdateResourceRequest } from '../services/api/types';
+import StyledSelect from './ui/StyledSelect';
 
 interface ApiResourceDetailViewProps {
   resourceId: number;
@@ -37,21 +42,38 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
 
-  const { logs, pagination, loading: logsLoading, setPage } = useResourceAuditLogs(resourceId);
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+
+  const { logs, pagination, loading: logsLoading, setPage, refresh: refreshLogs } = useResourceAuditLogs(resourceId);
+  const { types: resourceTypes, loading: typesLoading } = useResourceTypes();
+
+  const fetchResource = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await resourceApi.get(resourceId);
+      setResource(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load resource');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshResource = async () => {
+    try {
+      const data = await resourceApi.get(resourceId);
+      setResource(data);
+      refreshLogs();
+    } catch (err) {
+      // Silent refresh failure
+    }
+  };
 
   useEffect(() => {
-    const fetchResource = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await resourceApi.get(resourceId);
-        setResource(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load resource');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchResource();
   }, [resourceId]);
 
@@ -282,15 +304,24 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quick Actions</h3>
           <div className="space-y-2">
-            <button className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 hover:text-white transition-all">
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 hover:text-white transition-all"
+            >
               <Settings size={16} className="text-cyan-400" />
               Edit Resource
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 hover:text-white transition-all">
+            <button
+              onClick={() => setIsStatusModalOpen(true)}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 hover:text-white transition-all"
+            >
               <Activity size={16} className="text-green-400" />
               Change Status
             </button>
-            <button className="w-full flex items-center gap-3 p-3 bg-red-950/30 hover:bg-red-950/50 rounded-lg text-sm text-red-400 hover:text-red-300 transition-all border border-red-900/30">
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="w-full flex items-center gap-3 p-3 bg-red-950/30 hover:bg-red-950/50 rounded-lg text-sm text-red-400 hover:text-red-300 transition-all border border-red-900/30"
+            >
               <Trash2 size={16} />
               Delete Resource
             </button>
@@ -427,6 +458,288 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {renderTabContent()}
+      </div>
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <EditResourceModal
+          resource={resource}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={() => {
+            setIsEditModalOpen(false);
+            refreshResource();
+          }}
+        />
+      )}
+
+      {/* Status Modal */}
+      {isStatusModalOpen && (
+        <ChangeStatusModal
+          resource={resource}
+          onClose={() => setIsStatusModalOpen(false)}
+          onSave={() => {
+            setIsStatusModalOpen(false);
+            refreshResource();
+          }}
+        />
+      )}
+
+      {/* Delete Modal */}
+      {isDeleteModalOpen && (
+        <DeleteResourceModal
+          resource={resource}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onDeleted={() => {
+            setIsDeleteModalOpen(false);
+            onBack();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Edit Resource Modal
+interface EditResourceModalProps {
+  resource: ResourceDTO;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+const EditResourceModal: React.FC<EditResourceModalProps> = ({ resource, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: resource.name,
+    description: resource.description || '',
+    attributes: resource.attributes || '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const updateData: UpdateResourceRequest = {
+        id: resource.id,
+        name: formData.name,
+        description: formData.description || undefined,
+        attributes: formData.attributes || undefined,
+        version: resource.version,
+      };
+      await resourceApi.update(updateData);
+      onSave();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Update failed, please try again');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <h3 className="font-bold text-white text-sm">Edit Resource</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-950/30 border border-red-900/50 rounded-lg text-red-400 text-sm">{error}</div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Name</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500 outline-none resize-none h-20"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Attributes (JSON)</label>
+            <textarea
+              value={formData.attributes}
+              onChange={e => setFormData({ ...formData, attributes: e.target.value })}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white font-mono focus:border-cyan-500 outline-none resize-none h-24"
+              placeholder='{"key": "value"}'
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Change Status Modal
+interface ChangeStatusModalProps {
+  resource: ResourceDTO;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({ resource, onClose, onSave }) => {
+  const [selectedStatus, setSelectedStatus] = useState<ResourceStatus>(resource.status);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const statusOptions = Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+    value: key,
+    label: config.label,
+  }));
+
+  const handleSubmit = async () => {
+    if (selectedStatus === resource.status) {
+      onClose();
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await resourceApi.updateStatus({
+        id: resource.id,
+        status: selectedStatus,
+        version: resource.version,
+      });
+      onSave();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Update failed, please try again');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <h3 className="font-bold text-white text-sm">Change Status</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-950/30 border border-red-900/50 rounded-lg text-red-400 text-sm">{error}</div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Status</label>
+            <StyledSelect
+              value={selectedStatus}
+              onChange={(val) => setSelectedStatus(val as ResourceStatus)}
+              options={statusOptions}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isSubmitting ? 'Updating...' : 'Update'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Delete Resource Modal
+interface DeleteResourceModalProps {
+  resource: ResourceDTO;
+  onClose: () => void;
+  onDeleted: () => void;
+}
+
+const DeleteResourceModal: React.FC<DeleteResourceModalProps> = ({ resource, onClose, onDeleted }) => {
+  const [confirmName, setConfirmName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canDelete = confirmName === resource.name;
+
+  const handleDelete = async () => {
+    if (!canDelete) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      await resourceApi.delete(resource.id, confirmName);
+      onDeleted();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Delete failed, please try again');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <h3 className="font-bold text-red-400 text-sm">Delete Resource</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-950/30 border border-red-900/50 rounded-lg text-red-400 text-sm">{error}</div>
+          )}
+          <p className="text-sm text-slate-400">
+            This action cannot be undone. Please type <span className="font-bold text-white">{resource.name}</span> to confirm.
+          </p>
+          <input
+            type="text"
+            value={confirmName}
+            onChange={e => setConfirmName(e.target.value)}
+            placeholder="Enter resource name"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-red-500 outline-none"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+            <button
+              onClick={handleDelete}
+              disabled={!canDelete || isDeleting}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

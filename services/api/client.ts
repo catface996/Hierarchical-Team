@@ -10,6 +10,9 @@ import { ERROR_MESSAGES, HTTP_STATUS } from './types';
 // Use empty string as base URL, requests are proxied via Vite dev server
 const API_BASE_URL = '';
 
+// Check if running in development mode
+const isDevelopment = import.meta.env.DEV;
+
 let authToken: string | null = null;
 
 /**
@@ -71,13 +74,18 @@ export async function apiPost<TReq, TRes>(
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
+  // In development mode, inject default operatorId (gateway handles this in other environments)
+  const requestData = isDevelopment
+    ? { ...data, operatorId: 0 }
+    : data;
+
   let response: Response;
 
   try {
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestData),
     });
   } catch (error) {
     // Network error
@@ -123,13 +131,18 @@ export async function apiPostRaw<TReq, TRes>(
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
+  // In development mode, inject default operatorId (gateway handles this in other environments)
+  const requestData = isDevelopment
+    ? { ...data, operatorId: 0 }
+    : data;
+
   let response: Response;
 
   try {
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestData),
     });
   } catch (error) {
     throw new ApiError(0, 'Network connection failed, please check your network');
