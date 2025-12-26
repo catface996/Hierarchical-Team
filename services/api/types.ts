@@ -769,3 +769,241 @@ export interface TopologyGraphQueryRequest {
   depth?: number;
   includeRelationships?: boolean;
 }
+
+// ============================================================================
+// Prompt Template Types (Feature: 007-prompt-template-api)
+// ============================================================================
+
+/**
+ * Prompt template entity from /api/v1/prompt-templates/* endpoints
+ */
+export interface PromptTemplateDTO {
+  /** Template ID (int64) */
+  id: number;
+  /** Template name (max 200 chars) */
+  name: string;
+  /** Usage type ID (nullable) */
+  usageId: number | null;
+  /** Usage type name (joined from TemplateUsage) */
+  usageName: string | null;
+  /** Template description (max 1000 chars) */
+  description: string | null;
+  /** Current version number (int32) */
+  currentVersion: number;
+  /** Template content (up to 64KB) */
+  content: string;
+  /** Optimistic lock version */
+  version: number;
+  /** Creator user ID */
+  createdBy: number;
+  /** Creation timestamp (ISO 8601) */
+  createdAt: string;
+  /** Last update timestamp (ISO 8601) */
+  updatedAt: string;
+}
+
+/**
+ * Prompt template detail with version history
+ */
+export interface PromptTemplateDetailDTO extends PromptTemplateDTO {
+  /** Version history list (all versions) */
+  versions: PromptTemplateVersionDTO[];
+}
+
+/**
+ * Template version history entry
+ */
+export interface PromptTemplateVersionDTO {
+  /** Version record ID */
+  id: number;
+  /** Parent template ID */
+  templateId: number;
+  /** Version number (starts at 1) */
+  versionNumber: number;
+  /** Content snapshot at this version */
+  content: string;
+  /** Change description (max 500 chars) */
+  changeNote: string | null;
+  /** Creator of this version */
+  createdBy: number;
+  /** Version creation timestamp */
+  createdAt: string;
+}
+
+/**
+ * Template usage category
+ */
+export interface TemplateUsageDTO {
+  /** Usage ID */
+  id: number;
+  /** Usage code (uppercase with underscores, e.g., "FAULT_DIAGNOSIS") */
+  code: string;
+  /** Display name */
+  name: string;
+  /** Description of this usage type */
+  description: string | null;
+  /** Creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+}
+
+// ============================================================================
+// Prompt Template Request Types (Feature: 007-prompt-template-api)
+// ============================================================================
+
+/**
+ * Query prompt templates list
+ * POST /api/v1/prompt-templates/list
+ */
+export interface ListPromptTemplatesRequest {
+  /** Filter by usage ID (optional) */
+  usageId?: number;
+  /** Search keyword (matches name/description) */
+  keyword?: string;
+  /** Page number (1-based, default 1) */
+  page?: number;
+  /** Page size (default 10, max 100) */
+  size?: number;
+}
+
+/**
+ * Get template detail with versions
+ * POST /api/v1/prompt-templates/detail
+ */
+export interface GetTemplateDetailRequest {
+  /** Template ID */
+  id: number;
+}
+
+/**
+ * Get specific version content
+ * POST /api/v1/prompt-templates/version/detail
+ */
+export interface GetVersionDetailRequest {
+  /** Template ID */
+  templateId: number;
+  /** Version number to retrieve (>= 1) */
+  versionNumber: number;
+}
+
+/**
+ * Create new prompt template
+ * POST /api/v1/prompt-templates/create
+ */
+export interface CreatePromptTemplateRequest {
+  /** Operator ID (injected by client in dev mode) */
+  operatorId?: number;
+  /** Template name (required, max 200 chars) */
+  name: string;
+  /** Template content (required, max 64KB) */
+  content: string;
+  /** Usage type ID (optional) */
+  usageId?: number;
+  /** Description (optional, max 1000 chars) */
+  description?: string;
+}
+
+/**
+ * Update prompt template
+ * POST /api/v1/prompt-templates/update
+ * Creates a new version automatically
+ */
+export interface UpdatePromptTemplateRequest {
+  /** Template ID */
+  id: number;
+  /** Operator ID */
+  operatorId?: number;
+  /** New content (required) */
+  content: string;
+  /** Change note (optional, max 500 chars) */
+  changeNote?: string;
+  /** Expected optimistic lock version for conflict detection */
+  expectedVersion?: number;
+}
+
+/**
+ * Delete prompt template
+ * POST /api/v1/prompt-templates/delete
+ */
+export interface DeleteTemplateRequest {
+  /** Template ID */
+  id: number;
+  /** Operator ID */
+  operatorId?: number;
+}
+
+/**
+ * Rollback to previous version
+ * POST /api/v1/prompt-templates/rollback
+ */
+export interface RollbackTemplateRequest {
+  /** Template ID */
+  id: number;
+  /** Operator ID */
+  operatorId?: number;
+  /** Target version number to rollback to (>= 1) */
+  targetVersion: number;
+  /** Expected optimistic lock version */
+  expectedVersion?: number;
+}
+
+// ============================================================================
+// Template Usage Request Types (Feature: 007-prompt-template-api)
+// ============================================================================
+
+/**
+ * Create template usage
+ * POST /api/v1/template-usages/create
+ */
+export interface CreateTemplateUsageRequest {
+  /** Usage code (uppercase, underscores allowed, pattern: ^[A-Z][A-Z0-9_]*$) */
+  code: string;
+  /** Display name (required, max 100 chars) */
+  name: string;
+  /** Description (optional, max 500 chars) */
+  description?: string;
+}
+
+/**
+ * Delete template usage
+ * POST /api/v1/template-usages/delete
+ */
+export interface DeleteUsageRequest {
+  /** Usage ID */
+  id: number;
+}
+
+// ============================================================================
+// Prompt Template Response Types (Feature: 007-prompt-template-api)
+// ============================================================================
+
+/** List templates response */
+export type ListPromptTemplatesResponse = ApiResponse<PageResult<PromptTemplateDTO>>;
+
+/** Create template response (201 returns DTO directly) */
+export type CreatePromptTemplateResponse = PromptTemplateDTO;
+
+/** Get template detail response */
+export type GetTemplateDetailResponse = ApiResponse<PromptTemplateDetailDTO>;
+
+/** Update template response */
+export type UpdatePromptTemplateResponse = ApiResponse<PromptTemplateDTO>;
+
+/** Delete template response */
+export type DeletePromptTemplateResponse = ApiResponse<void>;
+
+/** Rollback template response */
+export type RollbackTemplateResponse = ApiResponse<PromptTemplateDTO>;
+
+/** Get version detail response */
+export type GetVersionDetailResponse = ApiResponse<PromptTemplateVersionDTO>;
+
+/** List usages response */
+export type ListTemplateUsagesResponse = ApiResponse<TemplateUsageDTO[]>;
+
+/** Create usage response (201 returns DTO directly) */
+export type CreateTemplateUsageResponse = TemplateUsageDTO;
+
+/** Delete usage response */
+export type DeleteUsageResponse = ApiResponse<void>;

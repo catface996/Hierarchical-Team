@@ -33,3 +33,14 @@ export {
 export { useNodeMutations, type NodeFormData, type UseNodeMutationsResult } from './useNodeMutations';
 export { useNodeTypes, type UseNodeTypesResult } from './useNodeTypes';
 export { useNodeTopologies, type NodeTopologiesPagination, type UseNodeTopologiesResult } from './useNodeTopologies';
+
+// Prompt Template Management (Feature: 007-prompt-template-api)
+export {
+  usePromptTemplates,
+  type PromptTemplateFilters,
+  type Pagination as PromptPagination,
+  type UsePromptTemplatesResult,
+} from './usePromptTemplates';
+export { usePromptTemplateMutations, type UsePromptTemplateMutationsResult } from './usePromptTemplateMutations';
+export { useTemplateUsages, type UseTemplateUsagesResult } from './useTemplateUsages';
+export { usePromptTemplate, type UsePromptTemplateResult } from './usePromptTemplate';
