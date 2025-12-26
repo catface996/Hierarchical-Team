@@ -56,6 +56,7 @@ import ReportManagement from './components/ReportManagement';
 import ReportDetailView from './components/ReportDetailView';
 import ReportTemplateManagement from './components/ReportTemplateManagement';
 import PromptManagement from './components/PromptManagement';
+import { PromptDetailView, UsageManagement } from './components/prompt';
 import ModelManagement from './components/ModelManagement';
 import ToolManagement from './components/ToolManagement';
 import DiscoveryManagement from './components/DiscoveryManagement';
@@ -184,6 +185,24 @@ const ReportDetailWrapper: React.FC<{ reports: Report[] }> = ({ reports }) => {
   if (!report) return <NotFound />;
 
   return <ReportDetailView report={report} onBack={() => navigate(-1)} />;
+};
+
+const PromptDetailWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  if (!id) return <NotFound />;
+
+  const templateId = parseInt(id, 10);
+  if (isNaN(templateId)) return <NotFound />;
+
+  return (
+    <PromptDetailView
+      templateId={templateId}
+      onBack={() => navigate(-1)}
+      onEdit={() => navigate('/agents/prompts')}
+    />
+  );
 };
 
 const App: React.FC = () => {
@@ -941,8 +960,10 @@ const App: React.FC = () => {
 
           {/* Agents */}
           <Route path="agents" element={<AgentManagement teams={teams} onUpdateAgentConfig={handleUpdateAgentConfig} onDeleteAgent={handleDeleteAgent} onManagePrompts={() => navigate('/agents/prompts')} onManageModels={() => navigate('/agents/models')} onManageTools={() => navigate('/agents/tools')} />} />
-          <Route path="agents/prompts" element={<PromptManagement prompts={INITIAL_PROMPT_TEMPLATES} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => navigate(-1)} />} />
-          <Route path="agents/models" element={<ModelManagement models={INITIAL_MODELS} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => navigate(-1)} />} />
+          <Route path="agents/prompts" element={<PromptManagement onBack={() => navigate(-1)} />} />
+          <Route path="prompts/:id" element={<PromptDetailWrapper />} />
+          <Route path="prompts/usages" element={<UsageManagement onBack={() => navigate(-1)} />} />
+          <Route path="agents/models" element={<ModelManagement onBack={() => navigate(-1)} />} />
           <Route path="agents/tools" element={<ToolManagement tools={INITIAL_TOOLS} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => navigate(-1)} />} />
 
           {/* Reports */}
