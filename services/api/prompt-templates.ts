@@ -25,13 +25,13 @@ import type {
 // ============================================================================
 
 const ENDPOINTS = {
-  LIST: '/api/v1/prompt-templates/list',
-  CREATE: '/api/v1/prompt-templates/create',
-  DETAIL: '/api/v1/prompt-templates/detail',
-  UPDATE: '/api/v1/prompt-templates/update',
-  DELETE: '/api/v1/prompt-templates/delete',
-  ROLLBACK: '/api/v1/prompt-templates/rollback',
-  VERSION_DETAIL: '/api/v1/prompt-templates/version/detail',
+  LIST: '/api/service/v1/prompt-templates/list',
+  CREATE: '/api/service/v1/prompt-templates/create',
+  DETAIL: '/api/service/v1/prompt-templates/detail',
+  UPDATE: '/api/service/v1/prompt-templates/update',
+  DELETE: '/api/service/v1/prompt-templates/delete',
+  ROLLBACK: '/api/service/v1/prompt-templates/rollback',
+  VERSION_DETAIL: '/api/service/v1/prompt-templates/version/detail',
 } as const;
 
 // ============================================================================

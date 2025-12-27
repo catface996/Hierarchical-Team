@@ -34,9 +34,9 @@ npm test && npm run lint
 TypeScript 5.8, React 18.2: Follow standard conventions
 
 ## Recent Changes
+- 009-gateway-api-integration: Added TypeScript 5.8.2 + React 18.2.0, Vite 6.2.0
 - 008-model-api-integration: Added TypeScript 5.8.2 + React 18.2.0, Vite 6.2.0, Lucide React 0.303.0
 - 007-prompt-template-api: Added TypeScript 5.8.2 + React 18.2.0, react-router-dom 7.11.0, Vite 6.2.0, Lucide React (icons)
-- 006-url-routing: Added TypeScript 5.8.2, React 18.2.0 + Vite 6.2.0, React Router DOM 6.x (NEW)
 
 
 <!-- MANUAL ADDITIONS START -->

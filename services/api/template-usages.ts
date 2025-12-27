@@ -17,9 +17,9 @@ import type {
 // ============================================================================
 
 const ENDPOINTS = {
-  LIST: '/api/v1/template-usages/list',
-  CREATE: '/api/v1/template-usages/create',
-  DELETE: '/api/v1/template-usages/delete',
+  LIST: '/api/service/v1/template-usages/list',
+  CREATE: '/api/service/v1/template-usages/create',
+  DELETE: '/api/service/v1/template-usages/delete',
 } as const;
 
 // ============================================================================

@@ -16,13 +16,13 @@ import type {
   ModelDeleteRequest,
 } from './types';
 
-// API endpoints
+// API endpoints - routed through gateway to executor service
 const MODELS_API = {
-  LIST: '/api/v1/models/list',
-  CREATE: '/api/v1/models/create',
-  GET: '/api/v1/models/get',
-  UPDATE: '/api/v1/models/update',
-  DELETE: '/api/v1/models/delete',
+  LIST: '/api/executor/v1/models/list',
+  CREATE: '/api/executor/v1/models/create',
+  GET: '/api/executor/v1/models/get',
+  UPDATE: '/api/executor/v1/models/update',
+  DELETE: '/api/executor/v1/models/delete',
 } as const;
 
 /**
