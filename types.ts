@@ -185,6 +185,147 @@ export interface AgentTool {
   createdAt: number;
 }
 
+// ============ Tools API Types (Feature: 010-tools-management) ============
+
+/**
+ * Tool status enumeration
+ */
+export type ToolStatus = 'draft' | 'active' | 'deprecated' | 'disabled';
+
+/**
+ * Tool category response
+ */
+export interface ToolCategoryDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Tool response from API
+ */
+export interface ToolDTO {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  category_id: string | null;
+  tags: string[];
+  input_schema: Record<string, any>;
+  output_schema: Record<string, any>;
+  script_content: string | null;
+  executor_type: string;
+  executor_config: Record<string, any>;
+  status: ToolStatus;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  category: ToolCategoryDTO | null;
+}
+
+/**
+ * Tool list request
+ */
+export interface ToolListRequest {
+  page?: number;
+  page_size?: number;
+  status?: ToolStatus;
+  category_id?: string;
+  search?: string;
+}
+
+/**
+ * Tool list response
+ */
+export interface ToolListResponse {
+  items: ToolDTO[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/**
+ * Tool create request
+ */
+export interface ToolCreateRequest {
+  name: string;
+  display_name: string;
+  description: string;
+  category_id?: string | null;
+  tags?: string[];
+  input_schema?: Record<string, any>;
+  output_schema?: Record<string, any>;
+  script_content?: string | null;
+  executor_type?: string;
+  executor_config?: Record<string, any>;
+}
+
+/**
+ * Tool update request
+ */
+export interface ToolUpdateRequest {
+  tool_id: string;
+  display_name?: string;
+  description?: string;
+  status?: ToolStatus;
+  category_id?: string;
+  tags?: string[];
+  input_schema?: Record<string, any>;
+  output_schema?: Record<string, any>;
+  script_content?: string;
+  executor_config?: Record<string, any>;
+}
+
+/**
+ * Tool get/delete request
+ */
+export interface ToolIdRequest {
+  tool_id: string;
+}
+
+export interface ToolFormData {
+  id: string;
+  name: string;
+  description: string;
+  type: 'Function' | 'Integration' | 'Retrieval';
+  createdAt: number;
+}
+
+export interface ToolListState {
+  tools: ToolDTO[];
+  filteredTools: ToolDTO[];
+  searchTerm: string;
+  currentPage: number;
+  viewMode: 'list' | 'card';
+  isLoading: boolean;
+  error: string | null;
+  isModalOpen: boolean;
+  editingTool: ToolDTO | null;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message: string;
+  error?: string | null;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
+}
+
+export interface ToolUsageInfo {
+  inUse: boolean;
+  usageCount: number;
+  lastUsed: number | null;
+  dependencies: string[];
+}
+
 export interface Report {
   id: string;
   title: string;

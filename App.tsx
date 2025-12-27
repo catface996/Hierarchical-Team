@@ -964,7 +964,7 @@ const App: React.FC = () => {
           <Route path="prompts/:id" element={<PromptDetailWrapper />} />
           <Route path="prompts/usages" element={<UsageManagement onBack={() => navigate(-1)} />} />
           <Route path="agents/models" element={<ModelManagement onBack={() => navigate(-1)} />} />
-          <Route path="agents/tools" element={<ToolManagement tools={INITIAL_TOOLS} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} onBack={() => navigate(-1)} />} />
+          <Route path="agents/tools" element={<ToolManagement onBack={() => navigate(-1)} />} />
 
           {/* Reports */}
           <Route path="reports" element={<ReportManagement reports={reports} onViewReport={(r) => navigate(`/reports/${r.id}`)} onManageTemplates={() => navigate('/reports/templates')} />} />

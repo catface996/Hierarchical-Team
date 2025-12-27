@@ -1,7 +1,17 @@
+/**
+ * Tool Management Component
+ * 
+ * CRUD interface for managing tools with the new ToolDTO data model
+ * Feature: 010-tools-management
+ */
 
-import React, { useState } from 'react';
-import { AgentTool } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ToolDTO, ToolStatus, ToolCreateRequest, ToolUpdateRequest } from '../types';
 import StyledSelect from './ui/StyledSelect';
+import ConfirmDialog from './ui/ConfirmDialog';
+import { useTools } from '../services/hooks/useTools';
+import { useDebounce } from '../services/hooks/useDebounce';
+import { createTool, updateTool, deleteTool, activateTool, deactivateTool } from '../services/api/tools';
 import { 
   ArrowLeft, 
   Wrench, 
@@ -20,213 +30,760 @@ import {
   Link,
   SearchCode,
   Zap,
-  ArrowUpRight,
-  Sparkles,
-  ShieldCheck,
-  Globe
+  Loader2,
+  AlertCircle,
+  Power,
+  PowerOff,
+  Tag,
+  Hash
 } from 'lucide-react';
 
 interface ToolManagementProps {
-  tools: AgentTool[];
-  onAdd: (tool: AgentTool) => void;
-  onUpdate: (tool: AgentTool) => void;
-  onDelete: (id: string) => void;
   onBack: () => void;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ToolManagement: React.FC<ToolManagementProps> = ({ onBack }) => {
+  const {
+    tools,
+    loading,
+    error,
+    page,
+    totalPages,
+    total,
+    setPage,
+    setStatus,
+    setSearch,
+    status: statusFilter,
+    search: searchTerm,
+    refresh,
+  } = useTools({ size: 8 });
 
-const ToolManagement: React.FC<ToolManagementProps> = ({ tools, onAdd, onUpdate, onDelete, onBack }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTool, setEditingTool] = useState<AgentTool | null>(null);
+  const [editingTool, setEditingTool] = useState<ToolDTO | null>(null);
+  const [localSearch, setLocalSearch] = useState('');
+  
+  // Debounce search input
+  const debouncedSearch = useDebounce(localSearch, 300);
+  
+  useEffect(() => {
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
 
-  const filteredTools = tools.filter(t => 
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Delete confirmation dialog state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    tool: ToolDTO | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    tool: null,
+    isLoading: false,
+  });
 
-  const totalPages = Math.ceil(filteredTools.length / ITEMS_PER_PAGE);
-  const paginatedTools = filteredTools.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  // Status toggle loading state
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
 
-  const getToolTypeStyle = (type: string) => {
-    switch (type) {
-      case 'Function': return { accent: 'bg-indigo-600', text: 'text-indigo-400', bg: 'bg-indigo-950/30', border: 'border-indigo-500/20', icon: Terminal };
-      case 'Integration': return { accent: 'bg-pink-600', text: 'text-pink-400', bg: 'bg-pink-950/30', border: 'border-pink-500/20', icon: Link };
-      case 'Retrieval': return { accent: 'bg-purple-600', text: 'text-purple-400', bg: 'bg-purple-950/30', border: 'border-purple-500/20', icon: SearchCode };
-      default: return { accent: 'bg-cyan-600', text: 'text-cyan-400', bg: 'bg-cyan-950/30', border: 'border-cyan-500/20', icon: Puzzle };
+  const getStatusStyle = (status: ToolStatus) => {
+    switch (status) {
+      case 'active': return { bg: 'bg-emerald-950/30', border: 'border-emerald-500/20', text: 'text-emerald-400' };
+      case 'draft': return { bg: 'bg-amber-950/30', border: 'border-amber-500/20', text: 'text-amber-400' };
+      case 'deprecated': return { bg: 'bg-orange-950/30', border: 'border-orange-500/20', text: 'text-orange-400' };
+      case 'disabled': return { bg: 'bg-slate-950/30', border: 'border-slate-500/20', text: 'text-slate-400' };
+      default: return { bg: 'bg-cyan-950/30', border: 'border-cyan-500/20', text: 'text-cyan-400' };
     }
   };
 
-  const openEditModal = (tool: AgentTool) => {
-      setEditingTool(tool);
-      setIsModalOpen(true);
+  const getExecutorIcon = (executorType: string) => {
+    switch (executorType?.toLowerCase()) {
+      case 'python': return Terminal;
+      case 'http': return Link;
+      case 'retrieval': return SearchCode;
+      default: return Puzzle;
+    }
+  };
+
+  const openModal = (tool?: ToolDTO) => {
+    setEditingTool(tool || null);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingTool(null);
+  };
+
+  const handleDeleteClick = (tool: ToolDTO) => {
+    setDeleteConfirm({ isOpen: true, tool, isLoading: false });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.tool) return;
+
+    setDeleteConfirm(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      await deleteTool({ tool_id: deleteConfirm.tool.id });
+      setDeleteConfirm({ isOpen: false, tool: null, isLoading: false });
+      refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '删除失败');
+      setDeleteConfirm(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, tool: null, isLoading: false });
+  };
+
+  const handleToggleStatus = async (tool: ToolDTO) => {
+    setTogglingStatus(tool.id);
+    try {
+      if (tool.status === 'active') {
+        await deactivateTool({ tool_id: tool.id });
+      } else {
+        await activateTool({ tool_id: tool.id });
+      }
+      refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '状态切换失败');
+    } finally {
+      setTogglingStatus(null);
+    }
+  };
+
+  const handleSave = async (data: ToolCreateRequest | ToolUpdateRequest) => {
+    try {
+      if (editingTool) {
+        await updateTool({ tool_id: editingTool.id, ...data } as ToolUpdateRequest);
+      } else {
+        await createTool(data as ToolCreateRequest);
+      }
+      closeModal();
+      refresh();
+    } catch (error) {
+      throw error; // Let the modal handle the error
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-200 p-6 overflow-hidden">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 shrink-0">
         <div className="flex items-center gap-4">
-           <button onClick={onBack} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all"><ArrowLeft size={20} /></button>
-           <div>
-             <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-               <Wrench className="text-cyan-400" /> Utility Fabric
-             </h2>
-             <p className="text-slate-400 text-xs mt-1 font-medium">Extend agent capabilities with specialized functions and environmental hooks.</p>
-           </div>
+          <button onClick={onBack} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+              <Wrench className="text-cyan-400" /> 工具管理
+            </h2>
+            <p className="text-slate-400 text-xs mt-1 font-medium">管理 Agent 可用的工具和能力扩展</p>
+          </div>
         </div>
-        <button onClick={() => { setEditingTool(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest">
-          <Plus size={14} /> Provision tool
+        <button 
+          onClick={() => openModal()} 
+          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-bold text-xs tracking-widest"
+          disabled={loading}
+        >
+          <Plus size={14} /> 新建工具
         </button>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-950/30 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
+          <AlertCircle size={16} />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800/60 shrink-0">
-         <div className="relative w-full max-w-md">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Search */}
+          <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
-            <input type="text" placeholder="Search operational tools..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full bg-slate-950 border border-slate-700/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-cyan-500/50 text-slate-200 transition-all" />
-         </div>
-         <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
-            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><LayoutList size={16} /></button>
-            <button onClick={() => setViewMode('card')} className={`p-1.5 rounded transition-all ${viewMode === 'card' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16} /></button>
-         </div>
-      </div>
-
-      <div className="flex-1 overflow-auto custom-scrollbar">
-         {paginatedTools.length > 0 ? (
-            viewMode === 'card' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-6">
-                    {paginatedTools.map(tool => {
-                        const style = getToolTypeStyle(tool.type);
-                        return (
-                             <div key={tool.id} className="relative bg-slate-900 border border-slate-800/80 rounded-xl hover:border-cyan-500/40 hover:bg-slate-800/40 transition-all group flex flex-col min-h-[220px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-cyan-950/10">
-                                <div className={`h-1 w-full ${style.accent} opacity-30 group-hover:opacity-100 transition-opacity`}></div>
-                                <div className="p-5 flex flex-col flex-1">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-2.5 rounded-lg bg-slate-950 border border-slate-800 ${style.text} group-hover:text-cyan-400 transition-colors`}><style.icon size={20} /></div>
-                                        <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${style.bg} ${style.border} ${style.text}`}>{tool.type}</div>
-                                    </div>
-                                    <div className="mb-4">
-                                        <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-cyan-400 transition-colors leading-tight">{tool.name}</h3>
-                                        <div className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest opacity-80">{tool.id}</div>
-                                    </div>
-                                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-3 mb-4 flex-1">{tool.description}</p>
-                                    <div className="mt-5 pt-4 border-t border-slate-800/40 flex justify-between items-center shrink-0">
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => openEditModal(tool)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="Modify Capability"><Settings size={15} /></button>
-                                            <button onClick={() => onDelete(tool.id)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-red-400 transition-all" title="Decommission"><Trash2 size={15} /></button>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-[9px] font-black text-slate-600"><Globe size={10} /> GLOBAL ASSET</div>
-                                    </div>
-                                </div>
-                             </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-950 sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Capability Unit</th>
-                                <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Description preview</th>
-                                <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Interface</th>
-                                <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800 bg-slate-900/40">
-                            {paginatedTools.map(tool => {
-                                const style = getToolTypeStyle(tool.type);
-                                return (
-                                    <tr key={tool.id} className="hover:bg-slate-800/40 transition-colors group cursor-pointer" onClick={() => openEditModal(tool)}>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`p-2 rounded-lg bg-slate-950 border border-slate-800 ${style.text}`}><style.icon size={18} /></div>
-                                                <div>
-                                                    <div className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{tool.name}</div>
-                                                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{tool.id}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4"><p className="text-xs text-slate-400 max-w-sm truncate italic">"{tool.description}"</p></td>
-                                        <td className="p-4"><span className={`px-2 py-1 rounded text-[9px] font-black uppercase border tracking-widest ${style.bg} ${style.border} ${style.text}`}>{tool.type}</span></td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                <button onClick={(e) => { e.stopPropagation(); openEditModal(tool); }} className="p-2 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-cyan-400"><Settings size={16} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); onDelete(tool.id); }} className="p-2 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-red-400"><Trash2 size={16} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            )
-         ) : (
-             <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-2xl">
-                 <Wrench size={48} className="opacity-10 mb-4" />
-                 <p className="text-sm font-bold tracking-wide">No capability utilities detected in local fabric.</p>
-             </div>
-         )}
-      </div>
-
-      <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
-          <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"><ChevronLeft size={14} /> Prev</button>
-          <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-500 tracking-widest">Utility segment</span>
-              <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{currentPage}</span>
-              <span className="text-[10px] text-slate-500 font-bold">/</span>
-              <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalPages)}</span>
+            <input 
+              type="text" 
+              placeholder="搜索工具..." 
+              value={localSearch} 
+              onChange={(e) => setLocalSearch(e.target.value)} 
+              className="w-full bg-slate-950 border border-slate-700/60 rounded-lg py-2 pl-9 pr-10 text-sm focus:outline-none focus:border-cyan-500/50 text-slate-200 transition-all" 
+              disabled={loading}
+            />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
-          <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages || totalPages === 0} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs">Next <ChevronRight size={14} /></button>
+          
+          {/* Status Filter */}
+          <select
+            value={statusFilter || ''}
+            onChange={(e) => setStatus(e.target.value as ToolStatus || undefined)}
+            className="bg-slate-950 border border-slate-700/60 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-cyan-500/50 text-slate-200"
+            disabled={loading}
+          >
+            <option value="">全部状态</option>
+            <option value="active">启用</option>
+            <option value="draft">草稿</option>
+            <option value="deprecated">已弃用</option>
+            <option value="disabled">已禁用</option>
+          </select>
+        </div>
+        
+        {/* View Mode Toggle */}
+        <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
+          <button 
+            onClick={() => setViewMode('list')} 
+            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+            disabled={loading}
+          >
+            <LayoutList size={16} />
+          </button>
+          <button 
+            onClick={() => setViewMode('card')} 
+            className={`p-1.5 rounded transition-all ${viewMode === 'card' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+            disabled={loading}
+          >
+            <LayoutGrid size={16} />
+          </button>
+        </div>
       </div>
 
-      {isModalOpen && <ToolFormModal tool={editingTool} onClose={() => setIsModalOpen(false)} onSave={(t) => { if(editingTool) onUpdate(t); else onAdd(t); setIsModalOpen(false); }} />}
+      {/* Content */}
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+            <Loader2 size={48} className="animate-spin mb-4 text-cyan-400" />
+            <p className="text-sm font-bold tracking-wide">加载工具列表...</p>
+          </div>
+        ) : tools.length > 0 ? (
+          viewMode === 'card' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-6">
+              {tools.map(tool => {
+                const statusStyle = getStatusStyle(tool.status);
+                const ExecutorIcon = getExecutorIcon(tool.executor_type);
+                return (
+                  <div key={tool.id} className="relative bg-slate-900 border border-slate-800/80 rounded-xl hover:border-cyan-500/40 hover:bg-slate-800/40 transition-all group flex flex-col min-h-[240px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-cyan-950/10">
+                    <div className={`h-1 w-full ${tool.status === 'active' ? 'bg-emerald-500' : 'bg-slate-600'} opacity-30 group-hover:opacity-100 transition-opacity`}></div>
+                    <div className="p-5 flex flex-col flex-1">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-cyan-400 group-hover:text-cyan-300 transition-colors">
+                          <ExecutorIcon size={20} />
+                        </div>
+                        <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${statusStyle.bg} ${statusStyle.border} ${statusStyle.text}`}>
+                          {tool.status}
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-cyan-400 transition-colors leading-tight">{tool.display_name}</h3>
+                        <div className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest opacity-80">{tool.name}</div>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 mb-3 flex-1">{tool.description}</p>
+                      
+                      {/* Tags */}
+                      {tool.tags && tool.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {tool.tags.slice(0, 3).map((tag, idx) => (
+                            <span key={idx} className="text-[9px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded flex items-center gap-1">
+                              <Tag size={8} />{tag}
+                            </span>
+                          ))}
+                          {tool.tags.length > 3 && (
+                            <span className="text-[9px] text-slate-500">+{tool.tags.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="mt-auto pt-4 border-t border-slate-800/40 flex justify-between items-center">
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleToggleStatus(tool)} 
+                            className={`p-1.5 hover:bg-slate-700/50 rounded-lg transition-all ${tool.status === 'active' ? 'text-emerald-400 hover:text-emerald-300' : 'text-slate-500 hover:text-emerald-400'}`}
+                            title={tool.status === 'active' ? '禁用' : '启用'}
+                            disabled={togglingStatus === tool.id}
+                          >
+                            {togglingStatus === tool.id ? <Loader2 size={15} className="animate-spin" /> : (tool.status === 'active' ? <Power size={15} /> : <PowerOff size={15} />)}
+                          </button>
+                          <button onClick={() => openModal(tool)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-cyan-400 transition-all" title="编辑">
+                            <Settings size={15} />
+                          </button>
+                          <button onClick={() => handleDeleteClick(tool)} className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-red-400 transition-all" title="删除">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-slate-600">
+                          <Hash size={10} /> v{tool.version}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* List View */
+            <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-950 sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">工具</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">描述</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">状态</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">版本</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 bg-slate-900/40">
+                  {tools.map(tool => {
+                    const statusStyle = getStatusStyle(tool.status);
+                    const ExecutorIcon = getExecutorIcon(tool.executor_type);
+                    return (
+                      <tr key={tool.id} className="hover:bg-slate-800/40 transition-colors group cursor-pointer" onClick={() => openModal(tool)}>
+                        <td className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-cyan-400">
+                              <ExecutorIcon size={18} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{tool.display_name}</div>
+                              <div className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest">{tool.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-xs text-slate-400 max-w-sm truncate" title={tool.description}>{tool.description}</p>
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-[9px] font-black uppercase border tracking-widest ${statusStyle.bg} ${statusStyle.border} ${statusStyle.text}`}>
+                            {tool.status}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-xs text-slate-400">v{tool.version}</span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleToggleStatus(tool); }} 
+                              className={`p-2 hover:bg-slate-700 rounded-lg ${tool.status === 'active' ? 'text-emerald-400' : 'text-slate-500 hover:text-emerald-400'}`}
+                              disabled={togglingStatus === tool.id}
+                            >
+                              {togglingStatus === tool.id ? <Loader2 size={16} className="animate-spin" /> : (tool.status === 'active' ? <Power size={16} /> : <PowerOff size={16} />)}
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); openModal(tool); }} className="p-2 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-cyan-400">
+                              <Settings size={16} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteClick(tool); }} className="p-2 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-red-400">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-2xl">
+            <Wrench size={48} className="opacity-10 mb-4" />
+            <p className="text-sm font-bold tracking-wide">
+              {searchTerm || statusFilter ? '未找到匹配的工具' : '暂无工具'}
+            </p>
+            {(searchTerm || statusFilter) && (
+              <button 
+                onClick={() => { setLocalSearch(''); setStatus(undefined); }}
+                className="mt-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                清除筛选条件
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+          <button 
+            onClick={() => setPage(page - 1)} 
+            disabled={page === 1 || loading} 
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            <ChevronLeft size={14} /> 上一页
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">第</span>
+            <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{page}</span>
+            <span className="text-[10px] text-slate-500 font-bold">/</span>
+            <span className="text-xs text-slate-400 font-mono font-bold">{totalPages}</span>
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">页</span>
+            <span className="text-[10px] text-slate-600 ml-2">共 {total} 条</span>
+          </div>
+          <button 
+            onClick={() => setPage(page + 1)} 
+            disabled={page === totalPages || loading} 
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            下一页 <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Tool Form Modal */}
+      {isModalOpen && (
+        <ToolFormModal 
+          tool={editingTool} 
+          onClose={closeModal} 
+          onSave={handleSave}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="删除工具"
+        message={`确定要删除工具 "${deleteConfirm.tool?.display_name}" 吗？此操作无法撤销。`}
+        confirmText="删除"
+        cancelText="取消"
+        type="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 };
 
-const ToolFormModal: React.FC<{ tool: AgentTool | null, onClose: () => void, onSave: (tool: AgentTool) => void }> = ({ tool, onClose, onSave }) => {
-    const [formData, setFormData] = useState<AgentTool>(tool || { id: `tool-${Math.random().toString(36).substr(2, 6)}`, name: '', description: '', type: 'Function', createdAt: Date.now() });
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border-t-4 border-t-cyan-600 flex flex-col">
-          <div className="flex items-center justify-between p-5 bg-slate-950/50 border-b border-slate-800">
-            <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-widest"><Sparkles size={16} className="text-cyan-400" /> {tool ? 'Modify capability hook' : 'Register capability hook'}</h3>
-            <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
-          </div>
-          <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-5">
-              <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Capability Name</label>
-                  <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" placeholder="Analyze Infrastructure Performance..." />
-              </div>
-              <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Description Segment</label>
-                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:border-cyan-500/50 outline-none resize-none transition-all" placeholder="Define what this hook does in technical terms..." />
-              </div>
-              <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Hook Architecture</label>
-                  <StyledSelect
-                    value={formData.type}
-                    onChange={(val) => setFormData({...formData, type: val as any})}
-                    options={[
-                      { value: 'Function', label: 'Function' },
-                      { value: 'Integration', label: 'Integration' },
-                      { value: 'Retrieval', label: 'Retrieval' }
-                    ]}
-                    placeholder="Select hook type..."
-                  />
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                  <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all">Cancel</button>
-                  <button type="submit" className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2"><Save size={16} /> Save record</button>
-              </div>
-          </form>
+/**
+ * Tool Form Modal Component
+ */
+interface ToolFormModalProps {
+  tool: ToolDTO | null;
+  onClose: () => void;
+  onSave: (data: ToolCreateRequest | ToolUpdateRequest) => Promise<void>;
+}
+
+const ToolFormModal: React.FC<ToolFormModalProps> = ({ tool, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: tool?.name || '',
+    display_name: tool?.display_name || '',
+    description: tool?.description || '',
+    executor_type: tool?.executor_type || 'python',
+    tags: tool?.tags?.join(', ') || '',
+    input_schema: tool?.input_schema ? JSON.stringify(tool.input_schema, null, 2) : '{}',
+    output_schema: tool?.output_schema ? JSON.stringify(tool.output_schema, null, 2) : '{}',
+    script_content: tool?.script_content || '',
+  });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'basic' | 'schema' | 'script'>('basic');
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    // Name validation (snake_case pattern)
+    if (!formData.name.trim()) {
+      newErrors.name = '工具标识符不能为空';
+    } else if (!/^[a-z][a-z0-9_]*$/.test(formData.name)) {
+      newErrors.name = '标识符必须以小写字母开头，只能包含小写字母、数字和下划线';
+    }
+    
+    if (!formData.display_name.trim()) {
+      newErrors.display_name = '显示名称不能为空';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = '描述不能为空';
+    }
+    
+    // Validate JSON schemas
+    try {
+      JSON.parse(formData.input_schema);
+    } catch {
+      newErrors.input_schema = '输入 Schema 必须是有效的 JSON';
+    }
+    
+    try {
+      JSON.parse(formData.output_schema);
+    } catch {
+      newErrors.output_schema = '输出 Schema 必须是有效的 JSON';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const tags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+      
+      const data: ToolCreateRequest = {
+        name: formData.name,
+        display_name: formData.display_name,
+        description: formData.description,
+        category_id: null,  // Required field, null when no category
+        executor_type: formData.executor_type || 'python',
+        executor_config: {},  // Required field with default empty object
+        tags: tags.length > 0 ? tags : [],
+        input_schema: JSON.parse(formData.input_schema),
+        output_schema: JSON.parse(formData.output_schema),
+        script_content: formData.script_content || null,
+      };
+      
+      await onSave(data);
+    } catch (error) {
+      setErrors({ general: error instanceof Error ? error.message : '保存失败' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border-t-4 border-t-cyan-600 flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-5 bg-slate-950/50 border-b border-slate-800">
+          <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-widest">
+            <Zap size={16} className="text-cyan-400" /> 
+            {tool ? '编辑工具' : '新建工具'}
+          </h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors" disabled={isSubmitting}>
+            <X size={20} />
+          </button>
         </div>
+        
+        {/* Tabs */}
+        <div className="flex border-b border-slate-800 bg-slate-950/30">
+          {(['basic', 'schema', 'script'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
+                activeTab === tab 
+                  ? 'text-cyan-400 border-b-2 border-cyan-400' 
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {tab === 'basic' ? '基本信息' : tab === 'schema' ? 'Schema 定义' : '脚本内容'}
+            </button>
+          ))}
+        </div>
+        
+        <form onSubmit={handleSubmit} className="flex-1 overflow-auto">
+          <div className="p-6 space-y-5">
+            {/* Basic Tab */}
+            {activeTab === 'basic' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      工具标识符 *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={formData.name} 
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                      className={`w-full bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none transition-all font-mono ${
+                        errors.name ? 'border-red-500/50' : 'border-slate-700 focus:border-cyan-500/50'
+                      }`}
+                      placeholder="my_tool_name" 
+                      disabled={isSubmitting || !!tool}
+                    />
+                    {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+                    <p className="mt-1 text-[10px] text-slate-600">小写字母开头，只能包含小写字母、数字、下划线</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      显示名称 *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={formData.display_name} 
+                      onChange={e => setFormData({...formData, display_name: e.target.value})}
+                      className={`w-full bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none transition-all ${
+                        errors.display_name ? 'border-red-500/50' : 'border-slate-700 focus:border-cyan-500/50'
+                      }`}
+                      placeholder="我的工具" 
+                      disabled={isSubmitting}
+                    />
+                    {errors.display_name && <p className="mt-1 text-xs text-red-400">{errors.display_name}</p>}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                    描述 *
+                  </label>
+                  <textarea 
+                    rows={3} 
+                    value={formData.description} 
+                    onChange={e => setFormData({...formData, description: e.target.value})}
+                    className={`w-full bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none resize-none transition-all ${
+                      errors.description ? 'border-red-500/50' : 'border-slate-700 focus:border-cyan-500/50'
+                    }`}
+                    placeholder="描述这个工具的功能..." 
+                    disabled={isSubmitting}
+                  />
+                  {errors.description && <p className="mt-1 text-xs text-red-400">{errors.description}</p>}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      执行器类型
+                    </label>
+                    <select
+                      value={formData.executor_type}
+                      onChange={e => setFormData({...formData, executor_type: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="python">Python</option>
+                      <option value="http">HTTP</option>
+                      <option value="javascript">JavaScript</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      标签
+                    </label>
+                    <input 
+                      type="text" 
+                      value={formData.tags} 
+                      onChange={e => setFormData({...formData, tags: e.target.value})}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                      placeholder="tag1, tag2, tag3" 
+                      disabled={isSubmitting}
+                    />
+                    <p className="mt-1 text-[10px] text-slate-600">多个标签用逗号分隔</p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Schema Tab */}
+            {activeTab === 'schema' && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                    输入 Schema (JSON)
+                  </label>
+                  <textarea 
+                    rows={8} 
+                    value={formData.input_schema} 
+                    onChange={e => setFormData({...formData, input_schema: e.target.value})}
+                    className={`w-full bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none resize-none transition-all font-mono ${
+                      errors.input_schema ? 'border-red-500/50' : 'border-slate-700 focus:border-cyan-500/50'
+                    }`}
+                    placeholder='{"type": "object", "properties": {...}}' 
+                    disabled={isSubmitting}
+                  />
+                  {errors.input_schema && <p className="mt-1 text-xs text-red-400">{errors.input_schema}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                    输出 Schema (JSON)
+                  </label>
+                  <textarea 
+                    rows={8} 
+                    value={formData.output_schema} 
+                    onChange={e => setFormData({...formData, output_schema: e.target.value})}
+                    className={`w-full bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none resize-none transition-all font-mono ${
+                      errors.output_schema ? 'border-red-500/50' : 'border-slate-700 focus:border-cyan-500/50'
+                    }`}
+                    placeholder='{"type": "object", "properties": {...}}' 
+                    disabled={isSubmitting}
+                  />
+                  {errors.output_schema && <p className="mt-1 text-xs text-red-400">{errors.output_schema}</p>}
+                </div>
+              </>
+            )}
+            
+            {/* Script Tab */}
+            {activeTab === 'script' && (
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  脚本内容
+                </label>
+                <textarea 
+                  rows={16} 
+                  value={formData.script_content} 
+                  onChange={e => setFormData({...formData, script_content: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 resize-none transition-all font-mono"
+                  placeholder="# Python script content..." 
+                  disabled={isSubmitting}
+                />
+                <p className="mt-1 text-[10px] text-slate-600">根据执行器类型编写对应的脚本代码</p>
+              </div>
+            )}
+
+            {/* General Error */}
+            {errors.general && (
+              <div className="p-3 bg-red-950/30 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
+                <AlertCircle size={16} />
+                <span className="text-sm">{errors.general}</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Footer */}
+          <div className="p-5 bg-slate-950/30 border-t border-slate-800 flex justify-end gap-3">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="px-5 py-2.5 text-slate-400 hover:bg-slate-800 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              取消
+            </button>
+            <button 
+              type="submit" 
+              className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black tracking-widest rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2 disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  保存
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
-    );
+    </div>
+  );
 };
 
 export default ToolManagement;
