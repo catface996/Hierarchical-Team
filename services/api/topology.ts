@@ -50,26 +50,26 @@ import type {
  */
 const ENDPOINTS = {
   // Topology Graph (deprecated - use TOPOLOGY_CRUD for list/CRUD operations)
-  TOPOLOGY_QUERY: '/api/v1/resources/topology/query',
+  TOPOLOGY_QUERY: '/api/service/v1/resources/topology/query',
 
   // Members (DEPRECATED - use TOPOLOGY_MEMBER_ENDPOINTS instead)
   /** @deprecated Use TOPOLOGY_MEMBER_ENDPOINTS.QUERY instead */
-  MEMBERS_QUERY: '/api/v1/resources/members/query',
-  MEMBERS_WITH_RELATIONS_QUERY: '/api/v1/resources/members-with-relations/query',
+  MEMBERS_QUERY: '/api/service/v1/resources/members/query',
+  MEMBERS_WITH_RELATIONS_QUERY: '/api/service/v1/resources/members-with-relations/query',
   /** @deprecated Use TOPOLOGY_MEMBER_ENDPOINTS.ADD instead */
-  MEMBERS_ADD: '/api/v1/resources/members/add',
+  MEMBERS_ADD: '/api/service/v1/resources/members/add',
   /** @deprecated Use TOPOLOGY_MEMBER_ENDPOINTS.REMOVE instead */
-  MEMBERS_REMOVE: '/api/v1/resources/members/remove',
+  MEMBERS_REMOVE: '/api/service/v1/resources/members/remove',
 
   // Hierarchy (still in use)
-  ANCESTORS_QUERY: '/api/v1/resources/ancestors/query',
+  ANCESTORS_QUERY: '/api/service/v1/resources/ancestors/query',
 
   // Relationships (still in use)
-  RELATIONSHIPS_CREATE: '/api/v1/relationships/create',
-  RELATIONSHIPS_UPDATE: '/api/v1/relationships/update',
-  RELATIONSHIPS_DELETE: '/api/v1/relationships/delete',
-  RELATIONSHIPS_RESOURCE_QUERY: '/api/v1/relationships/resource/query',
-  RELATIONSHIPS_CYCLE_DETECTION: '/api/v1/relationships/resource/cycle-detection',
+  RELATIONSHIPS_CREATE: '/api/service/v1/relationships/create',
+  RELATIONSHIPS_UPDATE: '/api/service/v1/relationships/update',
+  RELATIONSHIPS_DELETE: '/api/service/v1/relationships/delete',
+  RELATIONSHIPS_RESOURCE_QUERY: '/api/service/v1/relationships/resource/query',
+  RELATIONSHIPS_CYCLE_DETECTION: '/api/service/v1/relationships/resource/cycle-detection',
 } as const;
 
 // ============================================================================
@@ -78,9 +78,9 @@ const ENDPOINTS = {
 // ============================================================================
 
 const TOPOLOGY_MEMBER_ENDPOINTS = {
-  QUERY: '/api/v1/topologies/members/query',
-  ADD: '/api/v1/topologies/members/add',
-  REMOVE: '/api/v1/topologies/members/remove',
+  QUERY: '/api/service/v1/topologies/members/query',
+  ADD: '/api/service/v1/topologies/members/add',
+  REMOVE: '/api/service/v1/topologies/members/remove',
 } as const;
 
 // ============================================================================
@@ -88,12 +88,12 @@ const TOPOLOGY_MEMBER_ENDPOINTS = {
 // ============================================================================
 
 const TOPOLOGY_CRUD_ENDPOINTS = {
-  QUERY: '/api/v1/topologies/query',
-  CREATE: '/api/v1/topologies/create',
-  GET: '/api/v1/topologies/get',
-  UPDATE: '/api/v1/topologies/update',
-  DELETE: '/api/v1/topologies/delete',
-  GRAPH_QUERY: '/api/v1/topologies/graph/query',
+  QUERY: '/api/service/v1/topologies/query',
+  CREATE: '/api/service/v1/topologies/create',
+  GET: '/api/service/v1/topologies/get',
+  UPDATE: '/api/service/v1/topologies/update',
+  DELETE: '/api/service/v1/topologies/delete',
+  GRAPH_QUERY: '/api/service/v1/topologies/graph/query',
 } as const;
 
 // ============================================================================

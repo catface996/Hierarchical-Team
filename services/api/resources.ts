@@ -112,21 +112,21 @@ import type {
  */
 const ENDPOINTS = {
   /** @deprecated Use nodeApi.query() instead */
-  RESOURCES_QUERY: '/api/v1/resources/query',
+  RESOURCES_QUERY: '/api/service/v1/resources/query',
   /** @deprecated Use nodeApi.create() instead */
-  RESOURCES_CREATE: '/api/v1/resources/create',
+  RESOURCES_CREATE: '/api/service/v1/resources/create',
   /** @deprecated Use nodeApi.get() instead */
-  RESOURCES_GET: '/api/v1/resources/get',
+  RESOURCES_GET: '/api/service/v1/resources/get',
   /** @deprecated Use nodeApi.update() instead */
-  RESOURCES_UPDATE: '/api/v1/resources/update',
+  RESOURCES_UPDATE: '/api/service/v1/resources/update',
   /** @deprecated Use nodeApi.delete() instead */
-  RESOURCES_DELETE: '/api/v1/resources/delete',
+  RESOURCES_DELETE: '/api/service/v1/resources/delete',
   // Still in use - no node equivalent
-  RESOURCES_UPDATE_STATUS: '/api/v1/resources/update-status',
+  RESOURCES_UPDATE_STATUS: '/api/service/v1/resources/update-status',
   /** @deprecated Use nodeApi.getTypes() instead */
-  RESOURCE_TYPES_QUERY: '/api/v1/resource-types/query',
+  RESOURCE_TYPES_QUERY: '/api/service/v1/resource-types/query',
   // Still in use - no node equivalent
-  AUDIT_LOGS_QUERY: '/api/v1/resources/audit-logs/query',
+  AUDIT_LOGS_QUERY: '/api/service/v1/resources/audit-logs/query',
 } as const;
 
 // ============================================================================

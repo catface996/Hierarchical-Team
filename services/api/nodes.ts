@@ -22,12 +22,12 @@ import type {
 // ============================================================================
 
 const ENDPOINTS = {
-  QUERY: '/api/v1/nodes/query',
-  CREATE: '/api/v1/nodes/create',
-  GET: '/api/v1/nodes/get',
-  UPDATE: '/api/v1/nodes/update',
-  DELETE: '/api/v1/nodes/delete',
-  TYPES_QUERY: '/api/v1/nodes/types/query',
+  QUERY: '/api/service/v1/nodes/query',
+  CREATE: '/api/service/v1/nodes/create',
+  GET: '/api/service/v1/nodes/get',
+  UPDATE: '/api/service/v1/nodes/update',
+  DELETE: '/api/service/v1/nodes/delete',
+  TYPES_QUERY: '/api/service/v1/nodes/types/query',
 } as const;
 
 // ============================================================================
