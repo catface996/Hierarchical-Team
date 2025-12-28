@@ -23,14 +23,18 @@ import {
   Check,
   LayoutGrid,
   LayoutList,
+  Unlink,
+  Shield,
+  Zap,
 } from 'lucide-react';
 import { resourceApi, getResourceTypeIcon, getStatusConfig, STATUS_CONFIG } from '../services/api/resources';
 import { nodeApi } from '../services/api/nodes';
 import { useResourceAuditLogs } from '../services/hooks/useResourceAuditLogs';
 import { useResourceTypes } from '../services/hooks/useResourceTypes';
 import { useNodeTopologies } from '../services/hooks/useNodeTopologies';
+import { useNodeAgents } from '../services/hooks/useNodeAgents';
 import { ApiError } from '../services/api/client';
-import type { ResourceDTO, ResourceStatus, NodeDTO } from '../services/api/types';
+import type { ResourceDTO, ResourceStatus, NodeDTO, AgentDTO } from '../services/api/types';
 import StyledSelect from './ui/StyledSelect';
 import TopologyGraph from './TopologyGraph';
 
@@ -77,6 +81,16 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
   // Topologies view mode: 'card' or 'list'
   const [topologiesViewMode, setTopologiesViewMode] = useState<'card' | 'list'>('card');
 
+  // Agent binding modal state
+  const [isBindAgentModalOpen, setIsBindAgentModalOpen] = useState(false);
+
+  // Agent unbind confirmation
+  const [agentToUnbind, setAgentToUnbind] = useState<AgentDTO | null>(null);
+
+  // Agent pagination
+  const [agentPage, setAgentPage] = useState(1);
+  const AGENTS_PER_PAGE = 8;
+
   const { logs, pagination, loading: logsLoading, setPage, refresh: refreshLogs } = useResourceAuditLogs(resourceId);
   const { types: resourceTypes, loading: typesLoading } = useResourceTypes();
   const {
@@ -87,6 +101,17 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
     refresh: refreshTopologies,
     setPage: setTopologiesPage,
   } = useNodeTopologies(resourceId);
+
+  // Node agents hook
+  const {
+    agents: boundAgents,
+    loading: agentsLoading,
+    error: agentsError,
+    refresh: refreshAgents,
+    bindAgent,
+    unbindAgent,
+    binding: agentBinding,
+  } = useNodeAgents(resourceId);
 
   const fetchResource = async () => {
     setLoading(true);
@@ -500,8 +525,8 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
     );
 
     return (
-      <div>
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between mb-6 shrink-0">
           <h3 className="text-sm font-bold text-white">Associated Topologies</h3>
           <div className="flex items-center gap-2">
             {/* View mode toggle */}
@@ -541,103 +566,278 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
           </div>
         </div>
 
-        {/* Loading state */}
-        {topologiesLoading && nodeTopologies.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-            <Loader2 size={32} className="animate-spin text-cyan-500 mb-4" />
-            <p className="text-sm font-medium">Loading topologies...</p>
-          </div>
-        )}
+        {/* Content area */}
+        <div className="flex-1 overflow-auto">
+          {/* Loading state */}
+          {topologiesLoading && nodeTopologies.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <Loader2 size={32} className="animate-spin text-cyan-500 mb-4" />
+              <p className="text-sm font-medium">Loading topologies...</p>
+            </div>
+          )}
 
-        {/* Error state */}
-        {topologiesError && (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-            <AlertTriangle size={32} className="text-red-500 opacity-50 mb-4" />
-            <p className="text-sm font-medium text-red-400">{topologiesError}</p>
+          {/* Error state */}
+          {topologiesError && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <AlertTriangle size={32} className="text-red-500 opacity-50 mb-4" />
+              <p className="text-sm font-medium text-red-400">{topologiesError}</p>
+              <button
+                onClick={refreshTopologies}
+                className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!topologiesLoading && !topologiesError && nodeTopologies.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <Network size={48} className="opacity-20 mb-4" />
+              <p className="text-sm font-medium">No topologies found</p>
+              <p className="text-xs text-slate-600 mt-1">This resource is not a member of any topology</p>
+            </div>
+          )}
+
+          {/* Topologies content */}
+          {!topologiesError && nodeTopologies.length > 0 && (
+            <div className="pb-4">
+              {topologiesViewMode === 'card' ? renderCardView() : renderListView()}
+
+              {/* Show topology graph if this is a subgraph */}
+              {isSubgraph && (
+                <div className="mt-6 pt-6 border-t border-slate-800">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Topology Graph Preview</h4>
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden" style={{ height: '400px' }}>
+                    <TopologyGraph
+                      resourceId={resource.id}
+                      onNodeClick={(nodeId) => console.log('Node clicked:', nodeId)}
+                      onNodeDoubleClick={(nodeId) => console.log('Node double-clicked:', nodeId)}
+                      onNavigateToSubgraph={handleNavigateToSubgraph}
+                      showLegend={true}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination - fixed at bottom */}
+        <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+          <button
+            onClick={() => setTopologiesPage(topologiesPagination.page - 1)}
+            disabled={topologiesPagination.page === 1 || topologiesLoading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            <ChevronLeft size={14} /> Prev
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">Topology segment</span>
+            <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{topologiesPagination.page}</span>
+            <span className="text-[10px] text-slate-500 font-bold">/</span>
+            <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, topologiesPagination.totalPages)}</span>
+          </div>
+          <button
+            onClick={() => setTopologiesPage(topologiesPagination.page + 1)}
+            disabled={topologiesPagination.page >= topologiesPagination.totalPages || topologiesLoading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            Next <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAgentsTab = () => {
+    const handleUnbind = async () => {
+      if (agentToUnbind) {
+        await unbindAgent(agentToUnbind.id);
+        setAgentToUnbind(null);
+      }
+    };
+
+    const totalAgentPages = Math.ceil(boundAgents.length / AGENTS_PER_PAGE);
+    const paginatedAgents = boundAgents.slice((agentPage - 1) * AGENTS_PER_PAGE, agentPage * AGENTS_PER_PAGE);
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between mb-6 shrink-0">
+          <h3 className="text-sm font-bold text-white">Associated Agents</h3>
+          <div className="flex items-center gap-2">
             <button
-              onClick={refreshTopologies}
-              className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-all"
+              onClick={refreshAgents}
+              disabled={agentsLoading}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-all"
             >
-              Retry
+              <RefreshCw size={14} className={agentsLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setIsBindAgentModalOpen(true)}
+              disabled={agentBinding}
+              className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-all"
+            >
+              <Plus size={14} /> Assign Agent
             </button>
           </div>
-        )}
+        </div>
 
-        {/* Empty state */}
-        {!topologiesLoading && !topologiesError && nodeTopologies.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-            <Network size={48} className="opacity-20 mb-4" />
-            <p className="text-sm font-medium">No topologies found</p>
-            <p className="text-xs text-slate-600 mt-1">This resource is not a member of any topology</p>
+        {/* Content area - flex-1 to take remaining space */}
+        <div className="flex-1 overflow-auto">
+          {/* Loading state */}
+          {agentsLoading && boundAgents.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <Loader2 size={32} className="animate-spin text-cyan-500 mb-4" />
+              <p className="text-sm font-medium">Loading agents...</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {agentsError && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <AlertTriangle size={32} className="text-red-500 opacity-50 mb-4" />
+              <p className="text-sm font-medium text-red-400">{agentsError}</p>
+              <button
+                onClick={refreshAgents}
+                className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!agentsLoading && !agentsError && boundAgents.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+              <Bot size={48} className="opacity-20 mb-4" />
+              <p className="text-sm font-medium">No agents assigned</p>
+              <p className="text-xs text-slate-600 mt-1">Assign agents to monitor and diagnose this resource</p>
+            </div>
+          )}
+
+          {/* Agents content */}
+          {!agentsError && boundAgents.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
+              {paginatedAgents.map((agent) => {
+                const isSupervisor = agent.role === 'GLOBAL_SUPERVISOR' || agent.role === 'TEAM_SUPERVISOR';
+                const roleLabel = agent.role === 'GLOBAL_SUPERVISOR' ? 'Global Orchestrator' :
+                                 agent.role === 'TEAM_SUPERVISOR' ? 'Strategic Coordinator' :
+                                 agent.role === 'SCOUTER' ? 'Discovery Unit' : 'Tactical Unit';
+                return (
+                  <div
+                    key={agent.id}
+                    className="relative bg-slate-900 border border-slate-800/80 rounded-xl hover:border-cyan-500/40 hover:bg-slate-800/40 transition-all group flex flex-col min-h-[180px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-cyan-950/10"
+                  >
+                    <div className={`h-1 w-full ${isSupervisor ? 'bg-indigo-600' : 'bg-cyan-600'} opacity-30 group-hover:opacity-100 transition-opacity`}></div>
+                    <div className="p-4 flex flex-col flex-1">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className={`p-2 rounded-lg ${isSupervisor ? 'bg-indigo-950/30 text-indigo-400 border border-indigo-500/20' : 'bg-slate-950 text-slate-400 border border-slate-800'}`}>
+                          {isSupervisor ? <Shield size={18} /> : <Zap size={18} />}
+                        </div>
+                        <button
+                          onClick={() => setAgentToUnbind(agent)}
+                          disabled={agentBinding}
+                          className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                          title="Unbind agent"
+                        >
+                          <Unlink size={14} />
+                        </button>
+                      </div>
+                      <div className="mb-3">
+                        <h4 className="text-sm font-bold text-white mb-0.5 truncate group-hover:text-cyan-400 transition-colors">{agent.name}</h4>
+                        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em]">{roleLabel}</div>
+                      </div>
+                      {agent.specialty && (
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className="w-5 h-5 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shrink-0">
+                            <Activity size={10} className="text-slate-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[10px] text-slate-500 leading-none mb-0.5">Expertise</div>
+                            <div className="text-xs text-slate-300 font-medium truncate">{agent.specialty}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination - fixed at bottom */}
+        <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
+          <button
+            onClick={() => setAgentPage(p => Math.max(1, p - 1))}
+            disabled={agentPage === 1 || agentsLoading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            <ChevronLeft size={14} /> Prev
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-500 tracking-widest">Agent segment</span>
+            <span className="text-xs text-white bg-slate-800 px-2 py-0.5 rounded font-mono font-bold">{agentPage}</span>
+            <span className="text-[10px] text-slate-500 font-bold">/</span>
+            <span className="text-xs text-slate-400 font-mono font-bold">{Math.max(1, totalAgentPages)}</span>
           </div>
+          <button
+            onClick={() => setAgentPage(p => Math.min(totalAgentPages, p + 1))}
+            disabled={agentPage >= totalAgentPages || agentsLoading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-all font-bold text-xs"
+          >
+            Next <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Bind Agent Modal */}
+        {isBindAgentModalOpen && (
+          <BindAgentModal
+            nodeId={resourceId}
+            onBind={async (agentId) => {
+              const success = await bindAgent(agentId);
+              if (success) {
+                setIsBindAgentModalOpen(false);
+              }
+              return success;
+            }}
+            onClose={() => setIsBindAgentModalOpen(false)}
+            binding={agentBinding}
+          />
         )}
 
-        {/* Topologies content */}
-        {!topologiesError && nodeTopologies.length > 0 && (
-          <>
-            {topologiesViewMode === 'card' ? renderCardView() : renderListView()}
-
-            {/* Pagination */}
-            {topologiesPagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 pt-6 mt-6 border-t border-slate-800">
-                <button
-                  onClick={() => setTopologiesPage(topologiesPagination.page - 1)}
-                  disabled={topologiesPagination.page === 1 || topologiesLoading}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 hover:bg-slate-700 text-slate-300 transition-all text-xs font-bold"
-                >
-                  <ChevronLeft size={14} /> Prev
-                </button>
-                <span className="text-xs text-slate-400">
-                  Page <span className="text-white font-mono font-bold">{topologiesPagination.page}</span> of{' '}
-                  <span className="font-mono font-bold">{topologiesPagination.totalPages}</span>
-                  <span className="text-slate-600 ml-2">({topologiesPagination.totalElements} total)</span>
-                </span>
-                <button
-                  onClick={() => setTopologiesPage(topologiesPagination.page + 1)}
-                  disabled={topologiesPagination.page >= topologiesPagination.totalPages || topologiesLoading}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 hover:bg-slate-700 text-slate-300 transition-all text-xs font-bold"
-                >
-                  Next <ChevronRight size={14} />
-                </button>
+        {/* Unbind Confirmation Modal */}
+        {agentToUnbind && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm">
+              <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                <h3 className="font-bold text-red-400 text-sm">Unbind Agent</h3>
+                <button onClick={() => setAgentToUnbind(null)} className="text-slate-500 hover:text-white"><X size={20} /></button>
               </div>
-            )}
-          </>
-        )}
-
-        {/* Show topology graph if this is a subgraph */}
-        {isSubgraph && nodeTopologies.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-slate-800">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Topology Graph Preview</h4>
-            <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden" style={{ height: '400px' }}>
-              <TopologyGraph
-                resourceId={resource.id}
-                onNodeClick={(nodeId) => console.log('Node clicked:', nodeId)}
-                onNodeDoubleClick={(nodeId) => console.log('Node double-clicked:', nodeId)}
-                onNavigateToSubgraph={handleNavigateToSubgraph}
-                showLegend={true}
-              />
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-slate-400">
+                  Are you sure you want to unbind <span className="font-bold text-white">{agentToUnbind.name}</span> from this resource?
+                </p>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setAgentToUnbind(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+                  <button
+                    onClick={handleUnbind}
+                    disabled={agentBinding}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {agentBinding && <Loader2 size={14} className="animate-spin" />}
+                    Unbind
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
       </div>
     );
   };
-
-  const renderAgentsTab = () => (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-sm font-bold text-white">Associated Agents</h3>
-        <button className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-xs font-bold text-white transition-all">
-          <Plus size={14} /> Assign Agent
-        </button>
-      </div>
-      <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-        <Bot size={48} className="opacity-20 mb-4" />
-        <p className="text-sm font-medium">No agents assigned</p>
-        <p className="text-xs text-slate-600 mt-1">Assign agent teams to monitor and diagnose this resource</p>
-      </div>
-    </div>
-  );
 
   const renderHistoryTab = () => (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
@@ -1016,6 +1216,139 @@ const DeleteResourceModal: React.FC<DeleteResourceModalProps> = ({ resource, onC
               className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Bind Agent Modal Component
+interface BindAgentModalProps {
+  nodeId: number;
+  onBind: (agentId: number) => Promise<boolean>;
+  onClose: () => void;
+  binding: boolean;
+}
+
+const BindAgentModal: React.FC<BindAgentModalProps> = ({ nodeId, onBind, onClose, binding }) => {
+  const [agents, setAgents] = useState<AgentDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 6;
+
+  useEffect(() => {
+    const fetchUnboundAgents = async () => {
+      setLoading(true);
+      try {
+        const result = await nodeApi.listUnboundAgents({ nodeId, page, size: PAGE_SIZE });
+        setAgents(result.content || []);
+        setTotalPages(result.totalPages || 1);
+        setTotal(result.totalElements || 0);
+      } catch (err) {
+        console.error('Failed to fetch unbound agents:', err);
+        setAgents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUnboundAgents();
+  }, [nodeId, page]);
+
+  const handleBind = async () => {
+    if (selectedAgentId) {
+      await onBind(selectedAgentId);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <h3 className="font-bold text-white text-sm">Assign Agent</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="text-cyan-400 animate-spin" />
+            </div>
+          ) : agents.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <Bot size={32} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No available agents to assign</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {agents.map(agent => {
+                  const isSupervisor = agent.role === 'GLOBAL_SUPERVISOR' || agent.role === 'TEAM_SUPERVISOR';
+                  const isSelected = selectedAgentId === agent.id;
+                  return (
+                    <button
+                      key={agent.id}
+                      onClick={() => setSelectedAgentId(agent.id)}
+                      className={`w-full p-3 rounded-lg border text-left transition-all ${
+                        isSelected
+                          ? 'bg-cyan-950/30 border-cyan-500/50'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded ${isSupervisor ? 'bg-indigo-950/50 text-indigo-400' : 'bg-slate-900 text-slate-400'}`}>
+                          {isSupervisor ? <Shield size={14} /> : <Zap size={14} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{agent.name}</p>
+                          <p className="text-[10px] text-slate-500 uppercase">{agent.role.replace(/_/g, ' ')}</p>
+                        </div>
+                        {isSelected && <Check size={16} className="text-cyan-400" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Pagination */}
+          {!loading && agents.length > 0 && (
+            <div className="flex justify-center items-center gap-4 py-3 border-t border-slate-800">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+                className="flex items-center gap-1 px-2 py-1 rounded text-slate-400 hover:text-white disabled:opacity-30 text-xs"
+              >
+                <ChevronLeft size={14} /> Prev
+              </button>
+              <span className="text-xs text-slate-400">
+                Page <span className="text-white font-mono font-bold">{page}</span> of{' '}
+                <span className="font-mono font-bold">{totalPages}</span>
+                <span className="text-slate-600 ml-1">({total})</span>
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || loading}
+                className="flex items-center gap-1 px-2 py-1 rounded text-slate-400 hover:text-white disabled:opacity-30 text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
+            <button
+              onClick={handleBind}
+              disabled={!selectedAgentId || binding}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
+            >
+              {binding && <Loader2 size={14} className="animate-spin" />}
+              Assign
             </button>
           </div>
         </div>

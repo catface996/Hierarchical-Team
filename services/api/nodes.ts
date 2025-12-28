@@ -15,6 +15,7 @@ import type {
   NodeTypeDTO,
   PageResult,
   DEFAULT_OPERATOR_ID,
+  AgentDTO,
 } from './types';
 
 // ============================================================================
@@ -28,7 +29,43 @@ const ENDPOINTS = {
   UPDATE: '/api/service/v1/nodes/update',
   DELETE: '/api/service/v1/nodes/delete',
   TYPES_QUERY: '/api/service/v1/nodes/types/query',
+  BIND_AGENT: '/api/service/v1/nodes/bindAgent',
+  UNBIND_AGENT: '/api/service/v1/nodes/unbindAgent',
+  LIST_AGENTS: '/api/service/v1/nodes/listAgents',
+  LIST_UNBOUND_AGENTS: '/api/service/v1/nodes/listUnboundAgents',
 } as const;
+
+// ============================================================================
+// Types for Agent Binding
+// ============================================================================
+
+export interface BindAgentRequest {
+  nodeId: number;
+  agentId: number;
+}
+
+export interface UnbindAgentRequest {
+  nodeId: number;
+  agentId: number;
+}
+
+export interface NodeAgentRelationDTO {
+  id: number;
+  nodeId: number;
+  agentId: number;
+  createdAt: string;
+}
+
+export interface ListAgentsByNodeRequest {
+  nodeId: number;
+}
+
+export interface ListUnboundAgentsRequest {
+  nodeId: number;
+  keyword?: string;
+  page?: number;
+  size?: number;
+}
 
 // ============================================================================
 // Node API
@@ -93,6 +130,46 @@ export const nodeApi = {
     apiPost<Record<string, never>, NodeTypeDTO[]>(
       ENDPOINTS.TYPES_QUERY,
       {}
+    ),
+
+  /**
+   * Bind an agent to a node
+   * POST /api/v1/nodes/bindAgent
+   */
+  bindAgent: (params: BindAgentRequest): Promise<NodeAgentRelationDTO> =>
+    apiPost<BindAgentRequest, NodeAgentRelationDTO>(
+      ENDPOINTS.BIND_AGENT,
+      params
+    ),
+
+  /**
+   * Unbind an agent from a node
+   * POST /api/v1/nodes/unbindAgent
+   */
+  unbindAgent: (params: UnbindAgentRequest): Promise<void> =>
+    apiPost<UnbindAgentRequest, void>(
+      ENDPOINTS.UNBIND_AGENT,
+      params
+    ),
+
+  /**
+   * List agents bound to a node
+   * POST /api/v1/nodes/listAgents
+   */
+  listAgents: (params: ListAgentsByNodeRequest): Promise<AgentDTO[]> =>
+    apiPost<ListAgentsByNodeRequest, AgentDTO[]>(
+      ENDPOINTS.LIST_AGENTS,
+      params
+    ),
+
+  /**
+   * List agents not bound to a node (with pagination)
+   * POST /api/v1/nodes/listUnboundAgents
+   */
+  listUnboundAgents: (params: ListUnboundAgentsRequest): Promise<PageResult<AgentDTO>> =>
+    apiPost<ListUnboundAgentsRequest, PageResult<AgentDTO>>(
+      ENDPOINTS.LIST_UNBOUND_AGENTS,
+      params
     ),
 };
 
