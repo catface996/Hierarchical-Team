@@ -49,6 +49,9 @@ export { usePromptTemplate, type UsePromptTemplateResult } from './usePromptTemp
 export { useModels } from './useModels';
 export { useModelMutations } from './useModelMutations';
 
+// Report Template Management (Feature: 011-report-api-integration)
+export { useReportTemplates } from './useReportTemplates';
+
 // Agent Management (Feature: 012-agent-api-integration)
 export {
   useAgents,

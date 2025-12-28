@@ -7,8 +7,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { TopologyGroup, ReportTemplate } from '../types';
-import { INITIAL_REPORT_TEMPLATES } from '../services/mockData';
-import { useTopologies, useTopologyMutations } from '../services/hooks';
+import { useTopologies, useTopologyMutations, useReportTemplates } from '../services/hooks';
 import type { TopologyListItem, TopologyFormData } from '../services/api/types';
 import {
   Search,
@@ -457,12 +456,8 @@ const TemplateMultiSelect: React.FC<{
     const [filter, setFilter] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const filteredTemplates = useMemo(() => {
-        return INITIAL_REPORT_TEMPLATES.filter(t => 
-            t.name.toLowerCase().includes(filter.toLowerCase()) ||
-            t.category.toLowerCase().includes(filter.toLowerCase())
-        );
-    }, [filter]);
+    // Use API to fetch report templates
+    const { templates, loading } = useReportTemplates({ size: 100, keyword: filter });
 
     const toggleId = (id: string) => {
         const next = selectedIds.includes(id) 
@@ -481,6 +476,12 @@ const TemplateMultiSelect: React.FC<{
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Find template name by ID
+    const getTemplateName = (id: string) => {
+        const tpl = templates.find(x => String(x.id) === id);
+        return tpl?.name || `Template #${id}`;
+    };
+
     return (
         <div className="relative" ref={dropdownRef}>
             <div 
@@ -489,15 +490,12 @@ const TemplateMultiSelect: React.FC<{
             >
                 <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
                     {selectedIds.length > 0 ? (
-                        selectedIds.map(id => {
-                            const tpl = INITIAL_REPORT_TEMPLATES.find(x => x.id === id);
-                            return (
-                                <div key={id} className="flex items-center gap-1 bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-500/30">
-                                    {tpl?.name || id}
-                                    <X size={10} className="cursor-pointer hover:text-white" onClick={(e) => { e.stopPropagation(); toggleId(id); }} />
-                                </div>
-                            );
-                        })
+                        selectedIds.map(id => (
+                            <div key={id} className="flex items-center gap-1 bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-500/30">
+                                {getTemplateName(id)}
+                                <X size={10} className="cursor-pointer hover:text-white" onClick={(e) => { e.stopPropagation(); toggleId(id); }} />
+                            </div>
+                        ))
                     ) : (
                         <span className="text-slate-500 text-sm">Select one or more blueprints...</span>
                     )}
@@ -521,13 +519,17 @@ const TemplateMultiSelect: React.FC<{
                         </div>
                     </div>
                     <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
-                        {filteredTemplates.length > 0 ? (
-                            filteredTemplates.map(tpl => {
-                                const isSelected = selectedIds.includes(tpl.id);
+                        {loading ? (
+                            <div className="p-4 text-center">
+                                <Loader2 size={20} className="animate-spin text-cyan-400 mx-auto" />
+                            </div>
+                        ) : templates.length > 0 ? (
+                            templates.map(tpl => {
+                                const isSelected = selectedIds.includes(String(tpl.id));
                                 return (
                                     <div 
                                         key={tpl.id}
-                                        onClick={() => toggleId(tpl.id)}
+                                        onClick={() => toggleId(String(tpl.id))}
                                         className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-indigo-900/20 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
                                     >
                                         <div className="min-w-0">

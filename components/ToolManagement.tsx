@@ -211,8 +211,8 @@ const ToolManagement: React.FC<ToolManagementProps> = ({ onBack }) => {
                 </>
               ) : (
                 <>
-                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30">
-                    <FolderOpen className="text-amber-400" size={18} />
+                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30">
+                    <FolderOpen className="text-cyan-400" size={18} />
                   </div>
                   Category Management
                 </>
@@ -250,7 +250,7 @@ const ToolManagement: React.FC<ToolManagementProps> = ({ onBack }) => {
             onClick={() => setActiveTab('categories')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               activeTab === 'categories'
-                ? 'bg-amber-600 text-white shadow-md'
+                ? 'bg-cyan-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
