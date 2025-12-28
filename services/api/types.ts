@@ -410,6 +410,7 @@ export interface RelationshipCreateRequest {
   relationshipType: RelationshipType;  // Backend field name is relationshipType
   direction: RelationshipDirection;
   strength: RelationshipStrength;  // Backend expects string enum
+  topologyId: number;
   description?: string;
 }
 

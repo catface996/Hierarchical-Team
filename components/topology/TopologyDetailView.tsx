@@ -167,6 +167,7 @@ export const TopologyDetailView: React.FC<TopologyDetailViewProps> = ({
       relationshipType: relationshipType,
       direction: 'UNIDIRECTIONAL' as const,
       strength: 'STRONG' as const,
+      topologyId: topologyId,
     };
 
     console.log('[TopologyDetailView] Creating relationship:', requestData);
