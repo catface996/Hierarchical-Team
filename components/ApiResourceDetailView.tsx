@@ -649,11 +649,15 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
       refreshSupervisors();
     };
 
-    const totalAgentPages = Math.ceil(boundAgents.length / AGENTS_PER_PAGE);
-    const paginatedAgents = boundAgents.slice((agentPage - 1) * AGENTS_PER_PAGE, agentPage * AGENTS_PER_PAGE);
+    // Filter out supervisors from bound agents - they are shown in the Supervisors section
+    const workerAgents = boundAgents.filter(agent =>
+      agent.hierarchyLevel !== 'TEAM_SUPERVISOR' && agent.hierarchyLevel !== 'GLOBAL_SUPERVISOR'
+    );
+    const totalAgentPages = Math.ceil(workerAgents.length / AGENTS_PER_PAGE);
+    const paginatedAgents = workerAgents.slice((agentPage - 1) * AGENTS_PER_PAGE, agentPage * AGENTS_PER_PAGE);
 
     const isLoading = agentsLoading || supervisorsLoading;
-    const hasNoData = boundAgents.length === 0 && nodeSupervisors.length === 0;
+    const hasNoData = workerAgents.length === 0 && nodeSupervisors.length === 0;
 
     return (
       <div className="flex flex-col h-full">
@@ -688,7 +692,7 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
         {/* Content area - flex-1 to take remaining space */}
         <div className="flex-1 overflow-auto space-y-6">
           {/* Loading state */}
-          {isLoading && boundAgents.length === 0 && nodeSupervisors.length === 0 && (
+          {isLoading && workerAgents.length === 0 && nodeSupervisors.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-slate-500">
               <Loader2 size={32} className="animate-spin text-cyan-500 mb-4" />
               <p className="text-sm font-medium">Loading agents...</p>
@@ -782,12 +786,12 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
           )}
 
           {/* Workers Section */}
-          {!agentsError && boundAgents.length > 0 && (
+          {!agentsError && workerAgents.length > 0 && (
             <div className="pb-4">
               <div className="flex items-center gap-2 mb-4">
                 <Zap size={16} className="text-cyan-400" />
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Bound Workers</h4>
-                <span className="text-[10px] text-slate-600 font-mono">({boundAgents.length})</span>
+                <span className="text-[10px] text-slate-600 font-mono">({workerAgents.length})</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {paginatedAgents.map((agent) => {
@@ -839,8 +843,8 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
           )}
         </div>
 
-        {/* Pagination - only show when there are bound agents */}
-        {boundAgents.length > 0 && (
+        {/* Pagination - only show when there are worker agents */}
+        {workerAgents.length > 0 && (
           <div className="flex justify-center items-center gap-6 pt-4 border-t border-slate-900/50 shrink-0">
             <button
               onClick={() => setAgentPage(p => Math.max(1, p - 1))}
