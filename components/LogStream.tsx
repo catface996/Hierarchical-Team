@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { LogMessage } from '../types';
 import { Terminal, ArrowRight, Brain, CheckCircle2 } from 'lucide-react';
 
@@ -9,14 +9,24 @@ interface LogStreamProps {
 
 const LogStream: React.FC<LogStreamProps> = ({ logs, focusTarget }) => {
   const endRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const logRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Compute a scroll trigger based on logs content (not just length)
+  // This ensures we scroll when streaming content updates the last message
+  const scrollTrigger = useMemo(() => {
+    if (logs.length === 0) return '';
+    const lastLog = logs[logs.length - 1];
+    return `${logs.length}-${lastLog.content.length}`;
+  }, [logs]);
 
   // Auto-scroll to bottom only if NOT focusing on a specific agent
   useEffect(() => {
-    if (!focusTarget) {
-      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!focusTarget && containerRef.current) {
+      // Use scrollTop instead of scrollIntoView for smoother experience
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [logs.length, focusTarget]); // Depend on length so it scrolls on new logs
+  }, [scrollTrigger, focusTarget]); // Depend on scrollTrigger so it scrolls on content changes
 
   // Scroll to focused agent
   useEffect(() => {
@@ -63,7 +73,7 @@ const LogStream: React.FC<LogStreamProps> = ({ logs, focusTarget }) => {
 
   return (
     <div className="flex flex-col h-full font-mono text-sm relative">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {logs.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-slate-700 space-y-4">
              <Brain size={48} className="opacity-20 animate-pulse" />

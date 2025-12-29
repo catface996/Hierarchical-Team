@@ -911,14 +911,8 @@ const App: React.FC = () => {
               activeNodeIds={activeNodeIds}
               diagnosisScope={diagnosisScope}
               setDiagnosisScope={setDiagnosisScope}
-              logs={logs}
               focusTarget={focusTarget}
               setFocusTarget={setFocusTarget}
-              userQuery={userQuery}
-              setUserQuery={setUserQuery}
-              isSimulating={isSimulating}
-              handleAbortDiagnosis={handleAbortDiagnosis}
-              handleExecuteDiagnosis={handleExecuteDiagnosis}
               handleCreateLink={handleCreateLink}
               setIsGeneratingReport={setIsGeneratingReport}
             />

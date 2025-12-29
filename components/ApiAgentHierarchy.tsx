@@ -19,6 +19,10 @@ interface ApiAgentHierarchyProps {
   error: string | null;
   /** Set of active team IDs (for highlighting) */
   activeTeamIds?: Set<number>;
+  /** Currently active agent ID (for highlighting during execution) */
+  activeAgentId?: number | null;
+  /** Currently active agent name (fallback if ID not matched) */
+  activeAgentName?: string | null;
   /** Callback when agent is clicked */
   onAgentClick?: (agentId: number) => void;
 }
@@ -45,6 +49,15 @@ const getHierarchyStyle = (hierarchyLevel?: string, isTeamSup?: boolean) => {
   };
 };
 
+// Highlight style for active agent
+const getActiveStyle = (isActive: boolean, isTeamSup?: boolean) => {
+  if (!isActive) return '';
+  if (isTeamSup) {
+    return 'ring-2 ring-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.4)] bg-purple-900/60';
+  }
+  return 'ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] bg-cyan-900/50';
+};
+
 // Agent card component with hierarchy-based colors
 const AgentCard: React.FC<{
   agent: HierarchicalAgentDTO;
@@ -53,6 +66,7 @@ const AgentCard: React.FC<{
   onClick?: (id: number) => void;
 }> = ({ agent, isTeamSup, isActive, onClick }) => {
   const style = getHierarchyStyle(agent.hierarchyLevel, isTeamSup);
+  const activeStyle = getActiveStyle(!!isActive, isTeamSup);
 
   return (
     <div
@@ -60,7 +74,7 @@ const AgentCard: React.FC<{
       className={`
         flex items-center gap-1.5 px-1.5 py-1 rounded border transition-all duration-200 cursor-pointer
         ${style.bg} ${style.border} ${style.hoverBg} ${style.hoverBorder}
-        ${isActive ? 'shadow-[0_0_10px_rgba(0,255,255,0.2)]' : ''}
+        ${activeStyle}
         ${isTeamSup ? 'ml-0' : 'ml-4'}
       `}
     >
@@ -95,8 +109,16 @@ const NodeTeam: React.FC<{
   nodeTeam: HierarchicalTeamNodeDTO;
   isLast: boolean;
   isActive?: boolean;
+  activeAgentId?: number | null;
+  activeAgentName?: string | null;
   onAgentClick?: (id: number) => void;
-}> = ({ nodeTeam, isLast, isActive, onAgentClick }) => {
+}> = ({ nodeTeam, isLast, isActive, activeAgentId, activeAgentName, onAgentClick }) => {
+  // Check if an agent is active by ID or name
+  const isAgentActive = (agent: HierarchicalAgentDTO) => {
+    if (activeAgentId && agent.id === activeAgentId) return true;
+    if (activeAgentName && agent.name === activeAgentName) return true;
+    return false;
+  };
   return (
     <div className="flex">
       {/* Left connection line area */}
@@ -118,7 +140,7 @@ const NodeTeam: React.FC<{
           <AgentCard
             agent={nodeTeam.supervisor}
             isTeamSup={true}
-            isActive={isActive}
+            isActive={isAgentActive(nodeTeam.supervisor)}
             onClick={onAgentClick}
           />
         ) : (
@@ -140,7 +162,7 @@ const NodeTeam: React.FC<{
               <div className="flex-1 min-w-0">
                 <AgentCard
                   agent={worker}
-                  isActive={isActive}
+                  isActive={isAgentActive(worker)}
                   onClick={onAgentClick}
                 />
               </div>
@@ -170,8 +192,19 @@ const ApiAgentHierarchy: React.FC<ApiAgentHierarchyProps> = ({
   loading,
   error,
   activeTeamIds = new Set(),
+  activeAgentId,
+  activeAgentName,
   onAgentClick,
 }) => {
+  // Check if global supervisor is active
+  const isGlobalSupervisorActive = () => {
+    if (!team?.globalSupervisor) return false;
+    if (activeAgentId && team.globalSupervisor.id === activeAgentId) return true;
+    if (activeAgentName && team.globalSupervisor.name === activeAgentName) return true;
+    // Also check for "Global Supervisor" name pattern from log messages
+    if (activeAgentName === 'Global Supervisor') return true;
+    return false;
+  };
   // Loading state
   if (loading) {
     return (
@@ -217,7 +250,11 @@ const ApiAgentHierarchy: React.FC<ApiAgentHierarchyProps> = ({
       {team.globalSupervisor ? (
         <div
           onClick={() => onAgentClick?.(team.globalSupervisor!.id)}
-          className="flex items-center gap-1.5 p-2 bg-indigo-950/40 border border-indigo-500/30 rounded cursor-pointer hover:bg-indigo-900/50 hover:border-indigo-500/50 transition-all mb-1"
+          className={`flex items-center gap-1.5 p-2 bg-indigo-950/40 border border-indigo-500/30 rounded cursor-pointer hover:bg-indigo-900/50 hover:border-indigo-500/50 transition-all mb-1 ${
+            isGlobalSupervisorActive()
+              ? 'ring-2 ring-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.4)] bg-indigo-900/60'
+              : ''
+          }`}
         >
           <Network size={14} className="text-indigo-400 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -243,6 +280,8 @@ const ApiAgentHierarchy: React.FC<ApiAgentHierarchyProps> = ({
             nodeTeam={nodeTeam}
             isLast={idx === team.teams.length - 1}
             isActive={activeTeamIds.has(nodeTeam.nodeId)}
+            activeAgentId={activeAgentId}
+            activeAgentName={activeAgentName}
             onAgentClick={onAgentClick}
           />
         ))

@@ -67,6 +67,10 @@ interface TopologyGraphProps {
   /** Resource ID for API-based data fetching */
   resourceId?: number;
   activeNodeIds?: Set<string>;
+  /** Currently active node ID (for highlighting during execution) */
+  activeNodeId?: number | null;
+  /** Currently active node name (fallback if ID not matched) */
+  activeNodeName?: string | null;
   onNodeClick?: (nodeId: string) => void;
   onNodeDoubleClick?: (nodeId: string) => void;
   onCreateLink?: (link: { source: string; target: string; type: string }) => void;
@@ -127,6 +131,8 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
   data: staticData,
   resourceId,
   activeNodeIds = new Set(),
+  activeNodeId,
+  activeNodeName,
   onNodeClick = () => {},
   onNodeDoubleClick,
   onCreateLink,
@@ -321,6 +327,52 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
     // 添加/移除脉冲动画类
     nodeSelectionRef.current.classed("node-active", (d: any) => activeNodeIds.has(d.data?.id || d.id));
   }, [activeNodeIds]);
+
+  // 高亮当前活动节点（执行过程中）
+  useEffect(() => {
+    if (!nodeSelectionRef.current) return;
+
+    // Check if a node matches activeNodeId or activeNodeName
+    const isNodeActive = (d: any) => {
+      const nodeData = d.data || d;
+      // Match by numeric ID (parse string ID to number if needed)
+      if (activeNodeId != null) {
+        const nodeIdNum = typeof nodeData.id === 'string' ? parseInt(nodeData.id, 10) : nodeData.id;
+        if (nodeIdNum === activeNodeId) return true;
+      }
+      // Match by name (label)
+      if (activeNodeName && nodeData.label === activeNodeName) return true;
+      return false;
+    };
+
+    // Apply execution active highlighting
+    nodeSelectionRef.current.select("rect.node-rect")
+      .attr("stroke-width", (d: any) => {
+        if (isNodeActive(d)) return 4;
+        if (activeNodeIds.has(d.data?.id || d.id)) return 3.5;
+        return (d.data?.isShadow || d.isShadow ? 1.5 : 2);
+      })
+      .attr("filter", (d: any) => {
+        const nodeData = d.data || d;
+        if (isNodeActive(d)) {
+          // Cyan glow for execution active node
+          return `drop-shadow(0 0 20px rgba(34, 211, 238, 0.9)) drop-shadow(0 0 40px rgba(34, 211, 238, 0.5))`;
+        }
+        if (activeNodeIds.has(nodeData.id)) {
+          const color = getTypeColor(nodeData.type, nodeData.isShadow);
+          return `drop-shadow(0 0 12px ${hexToRgba(color, 0.8)})`;
+        }
+        return "none";
+      })
+      .attr("stroke", (d: any) => {
+        if (isNodeActive(d)) return "#22d3ee"; // Cyan for execution active
+        const nodeData = d.data || d;
+        return getTypeColor(nodeData.type, nodeData.isShadow);
+      });
+
+    // Add/remove execution active animation class
+    nodeSelectionRef.current.classed("node-execution-active", (d: any) => isNodeActive(d));
+  }, [activeNodeId, activeNodeName, activeNodeIds]);
 
   // 高亮链接模式中的源端口
   useEffect(() => {

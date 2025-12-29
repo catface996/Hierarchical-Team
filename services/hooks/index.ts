@@ -67,3 +67,12 @@ export { useTopologyReportTemplates } from './useTopologyReportTemplates';
 
 // Hierarchical Team (Feature: Diagnosis Page Integration)
 export { useHierarchicalTeam, type UseHierarchicalTeamResult } from './useHierarchicalTeam';
+
+// Multi-Agent Execution (Feature: Multi-Agent Execution Integration)
+export {
+  useExecution,
+  parseAgentInfo,
+  getEventType,
+  type UseExecutionOptions,
+  type UseExecutionResult,
+} from './useExecution';

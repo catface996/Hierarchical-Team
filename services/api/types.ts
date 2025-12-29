@@ -1745,3 +1745,89 @@ export interface HierarchicalTeamQueryRequest {
 
 /** Query hierarchical team response */
 export type HierarchicalTeamQueryResponse = ApiResponse<HierarchicalTeamDTO>;
+
+// ============================================================================
+// Execution Types (Feature: Multi-Agent Execution Integration)
+// ============================================================================
+
+/**
+ * Execution event from SSE stream
+ * POST /api/service/v1/executions/trigger
+ */
+export interface ExecutionEvent {
+  /** Event type (may be null, 'error' for errors, 'started' for first event) */
+  type: string | null;
+  /** Run ID (only present in 'started' event, used for cancellation) */
+  runId?: string;
+  /** Agent name (may be null) */
+  agentName: string | null;
+  /** Agent role (may be null) */
+  agentRole: string | null;
+  /** Event content/message text */
+  content: string | null;
+  /** Timestamp (ISO 8601 format) */
+  timestamp: string;
+  /** Additional metadata (may be null) */
+  metadata: Record<string, unknown> | null;
+}
+
+/**
+ * Trigger execution request
+ * POST /api/service/v1/executions/trigger
+ */
+export interface TriggerExecutionRequest {
+  /** Topology ID (required) */
+  topologyId: number;
+  /** User task message (required) */
+  userMessage: string;
+}
+
+/**
+ * Cancel execution request
+ * POST /api/service/v1/executions/cancel
+ */
+export interface CancelExecutionRequest {
+  /** Run ID (from 'started' event) */
+  runId: string;
+}
+
+/**
+ * Cancel execution response
+ * POST /api/service/v1/executions/cancel
+ */
+export interface CancelExecutionResponse {
+  /** Response code ('SUCCESS' or 'CANCEL_FAILED') */
+  code: string;
+  /** Response message */
+  message: string;
+  /** Response data (contains cancelled event info on success) */
+  data: {
+    type: string;
+    runId: string;
+    content: string;
+    timestamp: string;
+  } | null;
+}
+
+/**
+ * Parsed agent info from event content
+ */
+export interface ParsedAgentInfo {
+  role: 'global_supervisor' | 'team_supervisor' | 'worker' | 'unknown';
+  team?: string;
+  name?: string;
+}
+
+/**
+ * Execution event type classification
+ */
+export type ExecutionEventType =
+  | 'task_start'
+  | 'thinking'
+  | 'team_selection'
+  | 'coordination'
+  | 'work_start'
+  | 'agent_thinking'
+  | 'output'
+  | 'error'
+  | 'unknown';
