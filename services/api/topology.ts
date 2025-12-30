@@ -41,6 +41,9 @@ import type {
   // Hierarchical Team Query (Feature: Diagnosis Page Integration)
   HierarchicalTeamQueryRequest,
   HierarchicalTeamDTO,
+  // Unbound Global Supervisor types (Feature: Topology Supervisor Binding)
+  UnboundAgentDTO,
+  QueryUnboundAgentsRequest,
 } from './types';
 
 // ============================================================================
@@ -97,9 +100,10 @@ const TOPOLOGY_CRUD_ENDPOINTS = {
   UPDATE: '/api/service/v1/topologies/update',
   DELETE: '/api/service/v1/topologies/delete',
   GRAPH_QUERY: '/api/service/v1/topologies/graph/query',
-  SUPERVISOR_BIND: '/api/service/v1/topologies/supervisor/bind',
+  SUPERVISOR_BIND: '/api/service/v1/agent-bounds/bind',
   SUPERVISOR_UNBIND: '/api/service/v1/topologies/supervisor/unbind',
   HIERARCHICAL_TEAM_QUERY: '/api/service/v1/topologies/hierarchical-team/query',
+  UNBOUND_AGENTS: '/api/service/v1/topologies/agents/unbound',
 } as const;
 
 // ============================================================================
@@ -281,12 +285,12 @@ export const topologyApi = {
 
   /**
    * Bind Global Supervisor Agent to topology
-   * POST /api/v1/topologies/supervisor/bind
+   * POST /api/service/v1/agent-bounds/bind
    */
-  bindSupervisor: (params: { topologyId: number; agentId: number; operatorId?: number }): Promise<TopologyDTO> =>
-    apiPost<{ topologyId: number; agentId: number; operatorId: number }, TopologyDTO>(
+  bindSupervisor: (params: { topologyId: number; agentId: number }): Promise<void> =>
+    apiPost<{ agentId: number; entityId: number; entityType: string }, void>(
       TOPOLOGY_CRUD_ENDPOINTS.SUPERVISOR_BIND,
-      { ...params, operatorId: params.operatorId ?? 1 }
+      { agentId: params.agentId, entityId: params.topologyId, entityType: 'TOPOLOGY' }
     ),
 
   /**
@@ -307,6 +311,17 @@ export const topologyApi = {
   queryHierarchicalTeam: (params: HierarchicalTeamQueryRequest): Promise<HierarchicalTeamDTO> =>
     apiPost<HierarchicalTeamQueryRequest, HierarchicalTeamDTO>(
       TOPOLOGY_CRUD_ENDPOINTS.HIERARCHICAL_TEAM_QUERY,
+      params
+    ),
+
+  /**
+   * Query unbound Global Supervisor agents for a topology
+   * POST /api/service/v1/topologies/agents/unbound
+   * Returns only GLOBAL_SUPERVISOR agents not bound to the specified topology
+   */
+  queryUnboundSupervisors: (params: QueryUnboundAgentsRequest): Promise<PageResult<UnboundAgentDTO>> =>
+    apiPost<QueryUnboundAgentsRequest, PageResult<UnboundAgentDTO>>(
+      TOPOLOGY_CRUD_ENDPOINTS.UNBOUND_AGENTS,
       params
     ),
 };

@@ -2,12 +2,12 @@
   ============================================================================
   SYNC IMPACT REPORT
   ============================================================================
-  Version Change: 1.1.0 → 1.2.0 (Added Destructive Action Confirmation Pattern)
+  Version Change: 1.2.0 → 1.3.0 (Added Icon Consistency Standards)
 
   Modified Principles: N/A
 
   Added Sections:
-  - V. Destructive Action Confirmation Pattern (under Frontend Development Standards)
+  - VI. Icon Consistency Standards (under Frontend Development Standards)
 
   Removed Sections: N/A
 
@@ -17,7 +17,9 @@
   - .specify/templates/tasks-template.md: ✅ No update needed (generic template)
 
   Follow-up TODOs:
-  - Existing delete/unbind modals in codebase should be updated to comply with this principle
+  - Update TopologyDetailView.tsx: Change UserMinus to Unlink for unbind operations
+  - Update TopologyReportTemplates.tsx: Change Minus to Unlink for unbind template
+  - Verify all unbind icons across the codebase use Unlink consistently
   ============================================================================
 -->
 
@@ -233,6 +235,49 @@ disabled={confirmationInput !== itemToDelete.name || isDeleting}
 
 **Rationale**: Requiring users to type the name of the object being deleted prevents accidental deletions and ensures users consciously acknowledge which item they are removing. This pattern is especially critical for irreversible operations and follows industry best practices (GitHub repository deletion, AWS resource deletion, etc.).
 
+### VI. Icon Consistency Standards
+
+All UI icons MUST follow these semantic mappings to ensure visual consistency across the application:
+
+#### Binding Operations
+
+| Action | Icon | Import | Rationale |
+|--------|------|--------|-----------|
+| Bind / Assign / Link | `Link` | `lucide-react` | Chain link represents creating a connection |
+| Unbind / Unassign / Unlink | `Unlink` | `lucide-react` | Broken chain represents breaking a connection |
+| Add member / Add user | `UserPlus` | `lucide-react` | Person with plus for adding users |
+| Remove member / Remove user | `UserMinus` | `lucide-react` | Person with minus for removing users |
+
+**Rules**:
+1. **Unbind operations**: Always use `Unlink` icon for any unbind/unassign action, regardless of what is being unbound (agent, template, supervisor, etc.)
+2. **User-specific operations**: Use `UserPlus`/`UserMinus` only when the primary semantic is "adding/removing a person" (e.g., team member management), not for binding relationships
+3. **Generic remove**: Use `Minus` or `X` only for removing items from a list (not relationship unbinding)
+
+**Size Guidelines**:
+- Inline action buttons (in lists/cards): `size={12}` to `size={14}`
+- Modal header icons: `size={20}`
+- Standalone action buttons: `size={16}` to `size={18}`
+
+**Example - Unbind Button**:
+```tsx
+<button
+  onClick={() => onUnbind(item)}
+  className="p-1 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+  title="Unbind"
+>
+  <Unlink size={12} />
+</button>
+```
+
+**Example - Unbind Confirmation Modal**:
+```tsx
+<div className="p-2 bg-red-950/50 rounded-lg">
+  <Unlink size={20} className="text-red-400" />
+</div>
+```
+
+**Rationale**: Consistent icon usage across the application reduces cognitive load and establishes clear visual language. The `Unlink` icon semantically represents "breaking a binding relationship" regardless of the entity type, making it the universal choice for all unbind operations.
+
 ## Governance
 
 This constitution supersedes all other practices for the op-stack-web project.
@@ -250,4 +295,4 @@ This constitution supersedes all other practices for the op-stack-web project.
 - Constitution violations MUST be justified in Complexity Tracking section of plan.md
 - Runtime development guidance is maintained in CLAUDE.md
 
-**Version**: 1.2.0 | **Ratified**: 2025-12-27 | **Last Amended**: 2025-12-29
+**Version**: 1.3.0 | **Ratified**: 2025-12-27 | **Last Amended**: 2025-12-30

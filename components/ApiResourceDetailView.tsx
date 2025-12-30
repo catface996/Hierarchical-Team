@@ -26,6 +26,7 @@ import {
   Unlink,
   Shield,
   Zap,
+  Layers,
 } from 'lucide-react';
 import { resourceApi, getResourceTypeIcon, getStatusConfig, STATUS_CONFIG } from '../services/api/resources';
 import { nodeApi } from '../services/api/nodes';
@@ -38,6 +39,7 @@ import { useNodeAgents } from '../services/hooks/useNodeAgents';
 import { useNodeSupervisors } from '../services/hooks/useNodeSupervisors';
 import { ApiError } from '../services/api/client';
 import type { ResourceDTO, ResourceStatus, NodeDTO, AgentDTO } from '../services/api/types';
+import { NODE_LAYER_CONFIG } from '../services/api/types';
 import StyledSelect from './ui/StyledSelect';
 
 interface ApiResourceDetailViewProps {
@@ -61,6 +63,8 @@ function nodeToResource(node: NodeDTO): ResourceDTO {
     resourceTypeCode: node.nodeTypeCode,
     status: node.status,
     statusDisplay: node.statusDisplay,
+    layer: node.layer,
+    layerDisplay: node.layerDisplay,
     attributes: node.attributes,
     version: node.version,
     createdAt: node.createdAt,
@@ -351,6 +355,27 @@ const ApiResourceDetailView: React.FC<ApiResourceDetailViewProps> = ({ resourceI
                 <div className="text-xs text-slate-500">Resource Type</div>
                 <div className="text-sm text-white">{resource.resourceTypeName}</div>
                 <div className="text-xs text-slate-500 font-mono">{resource.resourceTypeCode}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+                <Layers size={14} className="text-slate-400" />
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Architecture Layer</div>
+                {resource.layer ? (
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold"
+                    style={{
+                      backgroundColor: `${NODE_LAYER_CONFIG[resource.layer].color}20`,
+                      color: NODE_LAYER_CONFIG[resource.layer].color,
+                    }}
+                  >
+                    {resource.layerDisplay || NODE_LAYER_CONFIG[resource.layer].label}
+                  </span>
+                ) : (
+                  <div className="text-sm text-slate-600">Not specified</div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">

@@ -8,11 +8,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nodeApi } from '../api/nodes';
-import type { ResourceDTO, NodeDTO, ResourceStatus, QueryNodesRequest } from '../api/types';
+import type { ResourceDTO, NodeDTO, ResourceStatus, NodeLayer, QueryNodesRequest } from '../api/types';
 
 export interface ResourceFilters {
   resourceTypeId?: number;  // Maps to nodeTypeId in new API
   status?: ResourceStatus;
+  layer?: NodeLayer;        // Architecture layer filter
   keyword?: string;
   topologyId?: number;  // T043: New filter for topology membership
 }
@@ -50,6 +51,8 @@ function nodeToResource(node: NodeDTO): ResourceDTO {
     resourceTypeCode: node.nodeTypeCode,
     status: node.status,
     statusDisplay: node.statusDisplay,
+    layer: node.layer,
+    layerDisplay: node.layerDisplay,
     attributes: node.attributes,
     version: node.version,
     createdAt: node.createdAt,
@@ -94,6 +97,10 @@ export function useResources(filters: ResourceFilters = {}): UseResourcesResult 
     if (filters.status) {
       params.status = filters.status;
     }
+    // Layer filter
+    if (filters.layer) {
+      params.layer = filters.layer;
+    }
     if (filters.keyword?.trim()) {
       params.keyword = filters.keyword.trim();
     }
@@ -134,13 +141,13 @@ export function useResources(filters: ResourceFilters = {}): UseResourcesResult 
         setLoading(false);
       }
     }
-  }, [filters.resourceTypeId, filters.status, filters.keyword, filters.topologyId]);
+  }, [filters.resourceTypeId, filters.status, filters.layer, filters.keyword, filters.topologyId]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
     fetchResources(1, pagination.size);
-  }, [filters.resourceTypeId, filters.status, filters.keyword, filters.topologyId, pagination.size, fetchResources]);
+  }, [filters.resourceTypeId, filters.status, filters.layer, filters.keyword, filters.topologyId, pagination.size, fetchResources]);
 
   const setPage = useCallback((page: number) => {
     setPagination(prev => ({ ...prev, page }));

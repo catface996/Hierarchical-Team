@@ -42,6 +42,58 @@ export interface PageResult<T> {
 export type ResourceStatus = 'RUNNING' | 'STOPPED' | 'MAINTENANCE' | 'OFFLINE';
 
 /**
+ * Node Layer - Architecture layer for resource nodes
+ * Feature: node-layer-field
+ */
+export type NodeLayer =
+  | 'BUSINESS_SCENARIO'
+  | 'BUSINESS_FLOW'
+  | 'BUSINESS_APPLICATION'
+  | 'MIDDLEWARE'
+  | 'INFRASTRUCTURE';
+
+/**
+ * Node Layer configuration for UI display
+ */
+export const NODE_LAYER_CONFIG: Record<NodeLayer, {
+  label: string;
+  labelEn: string;
+  color: string;
+  order: number;
+}> = {
+  BUSINESS_SCENARIO: {
+    label: 'Business Scenario',
+    labelEn: 'Business Scenario',
+    color: '#722ed1',  // Purple
+    order: 1,
+  },
+  BUSINESS_FLOW: {
+    label: 'Business Flow',
+    labelEn: 'Business Flow',
+    color: '#1890ff',  // Blue
+    order: 2,
+  },
+  BUSINESS_APPLICATION: {
+    label: 'Business Application',
+    labelEn: 'Business Application',
+    color: '#52c41a',  // Green
+    order: 3,
+  },
+  MIDDLEWARE: {
+    label: 'Middleware',
+    labelEn: 'Middleware',
+    color: '#faad14',  // Orange
+    order: 4,
+  },
+  INFRASTRUCTURE: {
+    label: 'Infrastructure',
+    labelEn: 'Infrastructure',
+    color: '#8c8c8c',  // Gray
+    order: 5,
+  },
+};
+
+/**
  * 资源 DTO
  */
 export interface ResourceDTO {
@@ -53,6 +105,8 @@ export interface ResourceDTO {
   resourceTypeCode: string;
   status: ResourceStatus;
   statusDisplay: string;
+  layer: NodeLayer | null;        // Architecture layer
+  layerDisplay: string | null;    // Architecture layer display name
   attributes: string | null;
   version: number;
   createdAt: string;
@@ -234,9 +288,9 @@ export type RelationshipDirection = 'UNIDIRECTIONAL' | 'BIDIRECTIONAL';
 export type RelationshipStatus = 'ACTIVE' | 'INACTIVE';
 
 /**
- * Topology layer enum
+ * Topology layer enum (matches backend NodeLayer)
  */
-export type TopologyLayer = 'scenario' | 'flow' | 'application' | 'middleware' | 'infrastructure';
+export type TopologyLayer = 'BUSINESS_SCENARIO' | 'BUSINESS_FLOW' | 'BUSINESS_APPLICATION' | 'MIDDLEWARE' | 'INFRASTRUCTURE';
 
 /**
  * Topology node - represents a resource in the graph
@@ -532,6 +586,16 @@ export function serializeTopologyAttributes(attrs: TopologyAttributes): string {
 // ============================================================================
 
 /**
+ * Global Supervisor info embedded in TopologyDTO
+ */
+export interface GlobalSupervisorInfo {
+  agentId: number;
+  agentName: string;
+  specialty: string | null;
+  model: string | null;
+}
+
+/**
  * TopologyDTO - Dedicated topology entity from /api/v1/topologies/* endpoints
  * This is separate from ResourceDTO as topologies are now first-class entities
  */
@@ -542,9 +606,7 @@ export interface TopologyDTO {
   status: ResourceStatus;
   statusDisplay: string;
   coordinatorAgentId: number | null;  // NEW: Coordinator Agent ID (Feature: 005-api-reintegration)
-  globalSupervisorAgentId: number | null;
-  globalSupervisorAgentName: string | null;
-  globalSupervisorAgentRole: string | null;
+  globalSupervisors: GlobalSupervisorInfo[];  // Bound Global Supervisor agents
   attributes: string | null;
   memberCount: number;  // Direct count from backend, no parsing needed
   version: number;
@@ -618,6 +680,40 @@ export type UpdateTopologyApiResponse = ApiResponse<TopologyDTO>;
 export type DeleteTopologyApiResponse = ApiResponse<void>;
 
 // ============================================================================
+// Unbound Global Supervisor Types (Feature: Topology Supervisor Binding)
+// ============================================================================
+
+/**
+ * Unbound Global Supervisor Agent DTO
+ * Returned by the unbound agents query endpoint
+ */
+export interface UnboundAgentDTO {
+  /** Agent ID */
+  id: number;
+  /** Agent name */
+  name: string;
+  /** Agent specialty/expertise */
+  specialty: string | null;
+  /** AI model identifier */
+  model: string | null;
+}
+
+/**
+ * Query unbound Global Supervisor agents request
+ * POST /api/service/v1/topologies/agents/unbound
+ */
+export interface QueryUnboundAgentsRequest {
+  /** Topology ID (required) */
+  topologyId: number;
+  /** Search keyword (matches name and specialty) */
+  keyword?: string;
+  /** Page number (1-based, default 1) */
+  page?: number;
+  /** Page size (default 20, max 100) */
+  size?: number;
+}
+
+// ============================================================================
 // Node Types (Feature: 005-api-reintegration)
 // ============================================================================
 
@@ -639,6 +735,8 @@ export interface NodeDTO {
   nodeTypeCode: string;
   status: ResourceStatus;
   statusDisplay: string;
+  layer: NodeLayer | null;        // Architecture layer
+  layerDisplay: string | null;    // Architecture layer display name
   agentTeamId: number | null;
   attributes: string | null;
   version: number;
@@ -671,6 +769,7 @@ export interface NodeTypeDTO {
 export interface QueryNodesRequest {
   nodeTypeId?: number;
   status?: ResourceStatus;
+  layer?: NodeLayer;  // Filter by architecture layer
   keyword?: string;
   topologyId?: number;
   page?: number;
@@ -686,6 +785,7 @@ export interface CreateNodeRequest {
   name: string;
   description?: string;
   nodeTypeId: number;
+  layer?: NodeLayer;  // Architecture layer
   agentTeamId?: number;
   attributes?: string;
 }
@@ -707,6 +807,7 @@ export interface UpdateNodeRequest {
   id: number;
   name?: string;
   description?: string;
+  layer?: NodeLayer;  // Architecture layer (null means no change)
   agentTeamId?: number;
   attributes?: string;
   version: number;

@@ -17,7 +17,7 @@ import {
   Search,
   X,
   Plus,
-  Minus,
+  Unlink,
   Package,
   CheckCircle2,
   ChevronLeft,
@@ -467,7 +467,7 @@ const BoundCategoryCard: React.FC<BoundCategoryCardProps> = ({
               className="shrink-0 p-1 text-slate-600 hover:text-red-400 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
               title="Unbind"
             >
-              <Minus size={10} />
+              <Unlink size={10} />
             </button>
           </div>
         ))}

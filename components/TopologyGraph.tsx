@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Topology, TopologyLink, TopologyLayer } from '../types';
+import { Topology, TopologyLink } from '../types';
 import { useTopology } from '../services/hooks/useTopology';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 
@@ -12,33 +12,35 @@ const LINK_TYPES = [
   { value: 'deployment', label: 'Deployment', color: '#334155', description: 'Deployment relationship' },
 ];
 
-// Layer configuration for 5-layer visualization
-const LAYER_CONFIG: Record<TopologyLayer, { index: number; label: string; color: string; borderColor: string }> = {
-  scenario: {
+// Layer configuration for 5-layer visualization (using backend format)
+type BackendLayer = 'BUSINESS_SCENARIO' | 'BUSINESS_FLOW' | 'BUSINESS_APPLICATION' | 'MIDDLEWARE' | 'INFRASTRUCTURE';
+
+const LAYER_CONFIG: Record<BackendLayer, { index: number; label: string; color: string; borderColor: string }> = {
+  BUSINESS_SCENARIO: {
     index: 0,
     label: 'Business Scenario',
     color: 'rgba(236, 72, 153, 0.08)',
     borderColor: 'rgba(236, 72, 153, 0.3)',
   },
-  flow: {
+  BUSINESS_FLOW: {
     index: 1,
     label: 'Business Flow',
     color: 'rgba(168, 85, 247, 0.08)',
     borderColor: 'rgba(168, 85, 247, 0.3)',
   },
-  application: {
+  BUSINESS_APPLICATION: {
     index: 2,
     label: 'Business Application',
     color: 'rgba(59, 130, 246, 0.08)',
     borderColor: 'rgba(59, 130, 246, 0.3)',
   },
-  middleware: {
+  MIDDLEWARE: {
     index: 3,
     label: 'Middleware',
     color: 'rgba(245, 158, 11, 0.08)',
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
-  infrastructure: {
+  INFRASTRUCTURE: {
     index: 4,
     label: 'Infrastructure',
     color: 'rgba(148, 163, 184, 0.08)',
@@ -46,7 +48,7 @@ const LAYER_CONFIG: Record<TopologyLayer, { index: number; label: string; color:
   },
 };
 
-const LAYER_ORDER: TopologyLayer[] = ['scenario', 'flow', 'application', 'middleware', 'infrastructure'];
+const LAYER_ORDER: BackendLayer[] = ['BUSINESS_SCENARIO', 'BUSINESS_FLOW', 'BUSINESS_APPLICATION', 'MIDDLEWARE', 'INFRASTRUCTURE'];
 
 interface LinkingState {
   sourceNodeId: string;
@@ -186,7 +188,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
           id: n.id,
           label: n.label,
           type: n.type,
-          layer: (n.layer || 'application') as TopologyLayer,
+          layer: (n.layer || 'BUSINESS_APPLICATION') as BackendLayer,
           isShadow: false,
           isSubgraph: n.isSubgraph,
           status: n.status,
@@ -541,11 +543,11 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
     const layerPadding = 60; // Padding at top
 
     // Group nodes by layer
-    const layerNodeMap = new Map<TopologyLayer, any[]>();
+    const layerNodeMap = new Map<BackendLayer, any[]>();
     LAYER_ORDER.forEach(layer => layerNodeMap.set(layer, []));
 
     treeNodes.forEach((d: any) => {
-      const layer = (d.data.layer || 'application') as TopologyLayer;
+      const layer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
       layerNodeMap.get(layer)?.push(d);
     });
 
@@ -553,11 +555,11 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
     const activeLayers = LAYER_ORDER.filter(layer => (layerNodeMap.get(layer)?.length || 0) > 0);
 
     // Track layer heights (can be expanded during drag)
-    const layerHeights = new Map<TopologyLayer, number>();
+    const layerHeights = new Map<BackendLayer, number>();
     activeLayers.forEach(layer => layerHeights.set(layer, baseLayerHeight));
 
     // Calculate layer Y positions
-    const layerYPositions = new Map<TopologyLayer, { top: number; center: number; bottom: number }>();
+    const layerYPositions = new Map<BackendLayer, { top: number; center: number; bottom: number }>();
 
     const recalculateLayerPositions = () => {
       let currentY = layerPadding;
@@ -840,8 +842,8 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
       // Apply cached layer heights
       let hasLayerHeightChanges = false;
       Object.entries(cachedLayout.layerHeights).forEach(([layer, height]) => {
-        if (layerHeights.has(layer as TopologyLayer)) {
-          layerHeights.set(layer as TopologyLayer, height);
+        if (layerHeights.has(layer as BackendLayer)) {
+          layerHeights.set(layer as BackendLayer, height);
           hasLayerHeightChanges = true;
         }
       });
@@ -962,7 +964,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
       const padding = 10;
 
       treeNodes.forEach((d: any) => {
-        const nodeLayer = (d.data.layer || 'application') as TopologyLayer;
+        const nodeLayer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
         const layerPos = layerYPositions.get(nodeLayer);
 
         // Constrain X within layer bounds
@@ -1135,7 +1137,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
 
                   // Adjust nodes in the top layer only
                   treeNodes.forEach((d: any) => {
-                    const nodeLayer = (d.data.layer || 'application') as TopologyLayer;
+                    const nodeLayer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
                     if (nodeLayer === topLayer) {
                       const layerPos = layerYPositions.get(nodeLayer);
                       if (layerPos) {
@@ -1215,7 +1217,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
 
                   // Adjust nodes in the bottom layer only
                   treeNodes.forEach((d: any) => {
-                    const nodeLayer = (d.data.layer || 'application') as TopologyLayer;
+                    const nodeLayer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
                     if (nodeLayer === bottomLayer) {
                       const layerPos = layerYPositions.get(nodeLayer);
                       if (layerPos) {
@@ -1293,7 +1295,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
 
                 // Adjust nodes to stay within their layer bounds
                 treeNodes.forEach((d: any) => {
-                  const nodeLayer = (d.data.layer || 'application') as TopologyLayer;
+                  const nodeLayer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
                   const layerPos = layerYPositions.get(nodeLayer);
                   if (layerPos) {
                     const halfNodeHeight = rectHeight / 2;
@@ -1527,7 +1529,7 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
       })
       .on("drag", function(event, d) {
         // 获取节点所属的 Layer
-        const nodeLayer = (d.data.layer || 'application') as TopologyLayer;
+        const nodeLayer = (d.data.layer || 'BUSINESS_APPLICATION') as BackendLayer;
         const layerPos = layerYPositions.get(nodeLayer);
 
         const halfNodeWidth = rectWidth / 2;

@@ -58,11 +58,11 @@ export interface LogMessage {
 }
 
 export type TopologyLayer =
-  | 'scenario'       // Business Scenario Layer
-  | 'flow'           // Business Flow Layer
-  | 'application'    // Business Application Layer
-  | 'middleware'     // Middleware Layer
-  | 'infrastructure'; // Infrastructure Layer
+  | 'BUSINESS_SCENARIO'       // Business Scenario Layer
+  | 'BUSINESS_FLOW'           // Business Flow Layer
+  | 'BUSINESS_APPLICATION'    // Business Application Layer
+  | 'MIDDLEWARE'              // Middleware Layer
+  | 'INFRASTRUCTURE';         // Infrastructure Layer
 
 export interface TopologyNode {
   id: string;

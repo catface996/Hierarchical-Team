@@ -6,7 +6,8 @@ import { useResourceTypes } from '../services/hooks/useResourceTypes';
 import { resourceApi, getResourceTypeIcon, getStatusConfig, type ResourceIcon } from '../services/api/resources';
 import { nodeApi } from '../services/api/nodes';
 import { ApiError } from '../services/api/client';
-import type { ResourceDTO, ResourceStatus, ResourceTypeDTO, CreateResourceRequest, UpdateResourceRequest, CreateNodeRequest } from '../services/api/types';
+import type { ResourceDTO, ResourceStatus, ResourceTypeDTO, CreateResourceRequest, UpdateResourceRequest, CreateNodeRequest, NodeLayer } from '../services/api/types';
+import { NODE_LAYER_CONFIG } from '../services/api/types';
 import {
   Search,
   Plus,
@@ -59,6 +60,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<number | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<ResourceStatus | undefined>(undefined);
+  const [selectedLayer, setSelectedLayer] = useState<NodeLayer | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
 
   // Modal state
@@ -74,6 +76,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
   const filters: ResourceFilters = {
     resourceTypeId: selectedTypeId,
     status: selectedStatus,
+    layer: selectedLayer,
     keyword: debouncedSearchTerm || undefined,
   };
 
@@ -245,6 +248,22 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
             />
           </div>
 
+          {/* Layer Filter */}
+          <div className="w-36">
+            <StyledSelect
+              value={selectedLayer || ''}
+              onChange={(val) => setSelectedLayer(val as NodeLayer | undefined || undefined)}
+              options={[
+                { value: '', label: 'All Layers' },
+                ...Object.entries(NODE_LAYER_CONFIG).map(([key, config]) => ({
+                  value: key,
+                  label: config.label,
+                })),
+              ]}
+              placeholder="Layer"
+            />
+          </div>
+
           <div className="flex bg-slate-950/80 rounded-lg p-1 border border-slate-800">
             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><LayoutList size={16} /></button>
             <button onClick={() => setViewMode('card')} className={`p-1.5 rounded transition-all ${viewMode === 'card' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16} /></button>
@@ -289,6 +308,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
                     <tr>
                       <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Resource</th>
                       <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Status</th>
+                      <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">Layer</th>
                       <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">ID</th>
                       <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800 text-right">Actions</th>
                     </tr>
@@ -322,6 +342,21 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
                               <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.color.replace('text-', 'bg-')}`}></span>
                               {statusStyle.label}
                             </span>
+                          </td>
+                          <td className="p-4">
+                            {resource.layer ? (
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
+                                style={{
+                                  backgroundColor: `${NODE_LAYER_CONFIG[resource.layer].color}20`,
+                                  color: NODE_LAYER_CONFIG[resource.layer].color,
+                                }}
+                              >
+                                {resource.layerDisplay || NODE_LAYER_CONFIG[resource.layer].label}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-600">-</span>
+                            )}
                           </td>
                           <td className="p-4 font-mono text-xs text-slate-500 opacity-60">{resource.id}</td>
                           <td className="p-4 text-right">
@@ -373,7 +408,16 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
                           {/* Name and Type */}
                           <div className="min-w-0 flex-1">
                             <h3 className="text-base font-bold text-white mb-0.5 truncate group-hover:text-cyan-400 transition-colors leading-tight max-w-[260px]" title={resource.name}>{resource.name}</h3>
-                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] opacity-80 truncate max-w-[260px]">{resource.resourceTypeName}</div>
+                            <div className="flex items-center gap-2">
+                              {resource.layer && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-800/60 text-slate-400"
+                                >
+                                  {resource.layerDisplay || NODE_LAYER_CONFIG[resource.layer].label}
+                                </span>
+                              )}
+                              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] opacity-80 truncate">{resource.resourceTypeName}</div>
+                            </div>
                           </div>
                         </div>
 
@@ -430,7 +474,7 @@ const ResourceManagement: React.FC<ResourceManagementProps> = ({ onViewDetail })
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-2xl">
               <Server size={48} className="opacity-10 mb-4" />
-              {debouncedSearchTerm || selectedTypeId || selectedStatus ? (
+              {debouncedSearchTerm || selectedTypeId || selectedStatus || selectedLayer ? (
                 <>
                   <p className="text-sm font-bold tracking-wide">No matching resources found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your search or filter criteria</p>
@@ -522,6 +566,7 @@ const ResourceFormModal: React.FC<ResourceFormModalProps> = ({
     name: resource?.name || '',
     description: resource?.description || '',
     resourceTypeId: resource?.resourceTypeId || (resourceTypes[0]?.id || 0),
+    layer: resource?.layer || ('' as NodeLayer | ''),
     attributes: resource?.attributes || '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -575,15 +620,17 @@ const ResourceFormModal: React.FC<ResourceFormModalProps> = ({
 
     try {
       if (resource) {
-        // Update
-        const updateData: UpdateResourceRequest = {
+        // Update - Uses nodeApi (005-api-reintegration)
+        const updateData = {
+          operatorId: 1,
           id: resource.id,
           name: formData.name,
           description: formData.description || undefined,
+          layer: formData.layer || undefined,
           attributes: formData.attributes || undefined,
           version: resource.version,
         };
-        await resourceApi.update(updateData);
+        await nodeApi.update(updateData);
       } else {
         // Create - Uses nodeApi instead of resourceApi (005-api-reintegration)
         const createData: CreateNodeRequest = {
@@ -591,6 +638,7 @@ const ResourceFormModal: React.FC<ResourceFormModalProps> = ({
           name: formData.name,
           description: formData.description || undefined,
           nodeTypeId: formData.resourceTypeId, // resourceTypeId maps to nodeTypeId
+          layer: formData.layer || undefined,
           attributes: formData.attributes || undefined,
         };
         await nodeApi.create(createData);
@@ -664,6 +712,22 @@ const ResourceFormModal: React.FC<ResourceFormModalProps> = ({
                 />
               )}
               {validationErrors.resourceTypeId && <p className="text-red-400 text-xs mt-1">{validationErrors.resourceTypeId}</p>}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Architecture Layer</label>
+              <StyledSelect
+                value={formData.layer || ''}
+                onChange={(val) => setFormData({...formData, layer: val as NodeLayer | ''})}
+                options={[
+                  { value: '', label: 'Not specified' },
+                  ...Object.entries(NODE_LAYER_CONFIG).map(([key, config]) => ({
+                    value: key,
+                    label: config.label,
+                  })),
+                ]}
+                placeholder="Select layer..."
+              />
             </div>
 
             <div>
