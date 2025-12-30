@@ -82,7 +82,13 @@ function getLogType(event: ExecutionEvent): LogMessage['type'] {
 /**
  * Aggregate consecutive events from the same agent into single log messages
  * This ensures all output from one agent appears in a single chat bubble
- * Note: SSE events are token-level streaming, so we concatenate without adding newlines
+ *
+ * Note: SSE events are token-level streaming where:
+ * - Agent prefix like "[Global Supervisor]" comes as one event
+ * - Following content like " THINKING: I" comes as separate events WITHOUT prefix
+ *
+ * Solution: Track "last known agent" and use it when current event can't identify agent
+ * (i.e., when getAgentIdentifier returns 'system' as fallback)
  */
 function aggregateEventsToLogs(events: ExecutionEvent[], isExecuting: boolean): LogMessage[] {
   if (events.length === 0) return [];
@@ -90,11 +96,21 @@ function aggregateEventsToLogs(events: ExecutionEvent[], isExecuting: boolean): 
   const logs: LogMessage[] = [];
   let currentLog: LogMessage | null = null;
   let currentAgentId: string | null = null;
+  let lastKnownAgent: { id: string; name: string } | null = null;
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const agent = getAgentIdentifier(event);
+    let agent = getAgentIdentifier(event);
     const content = event.content || '';
+
+    // If agent is 'system' (fallback) and we have a last known agent, use that instead
+    // This handles SSE token streaming where "[Global Supervisor]" and "THINKING:" are separate events
+    if (agent.id === 'system' && lastKnownAgent) {
+      agent = lastKnownAgent;
+    } else if (agent.id !== 'system') {
+      // Update last known agent when we successfully identify one
+      lastKnownAgent = agent;
+    }
 
     // If same agent as current log, append content directly (no newline - SSE is token-level)
     if (currentAgentId === agent.id && currentLog) {
