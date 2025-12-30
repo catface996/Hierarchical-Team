@@ -20,8 +20,14 @@ import type { Agent, Team, TopologyGroup, TopologyNode, TopologyLink, LogMessage
 
 /**
  * Extract agent identifier from an ExecutionEvent
+ * Priority:
+ * 1. Parse from content (most reliable - contains [Agent] prefix)
+ * 2. Use agentRole + agentName fields from event
+ * 3. Use agentName field alone
+ * 4. Fallback to 'System'
  */
 function getAgentIdentifier(event: ExecutionEvent): { id: string; name: string } {
+  // First try to parse from content (handles SSE streaming where content contains agent prefix)
   const agentInfo = parseAgentInfo(event.content);
 
   if (agentInfo) {
@@ -34,6 +40,20 @@ function getAgentIdentifier(event: ExecutionEvent): { id: string; name: string }
     }
   }
 
+  // Try to use agentRole field from event (if backend provides it)
+  if (event.agentRole) {
+    const role = event.agentRole.toLowerCase();
+    if (role === 'global_supervisor' || role === 'globalsupervisor') {
+      return { id: 'global-supervisor', name: event.agentName || 'Global Supervisor' };
+    } else if (role === 'team_supervisor' || role === 'teamsupervisor') {
+      const teamName = event.agentName?.replace(' Supervisor', '') || 'Unknown';
+      return { id: `team-supervisor-${teamName}`, name: event.agentName || `${teamName} Supervisor` };
+    } else if (role === 'worker') {
+      return { id: `worker-${event.agentName}`, name: event.agentName || 'Worker' };
+    }
+  }
+
+  // Fallback to agentName if available
   if (event.agentName) {
     return { id: event.agentName.toLowerCase().replace(/\s+/g, '-'), name: event.agentName };
   }

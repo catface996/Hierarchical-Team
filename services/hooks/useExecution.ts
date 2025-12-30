@@ -20,12 +20,18 @@ const EXECUTION_CANCEL_URL = '/api/service/v1/executions/cancel';
 
 /**
  * Parse agent info from event content
+ * Note: Uses regex matching to handle content that may have leading whitespace/newlines
+ * or where the agent prefix appears anywhere in the content (SSE token streaming)
  */
 export function parseAgentInfo(content: string | null): ParsedAgentInfo | null {
   if (!content) return null;
 
+  // Trim content and check for agent prefixes
+  const trimmed = content.trim();
+
   // Global Supervisor: [Global Supervisor] ...
-  if (content.startsWith('[Global Supervisor]')) {
+  // Use regex to match anywhere in content (SSE may stream tokens that append to previous content)
+  if (trimmed.startsWith('[Global Supervisor]') || content.includes('[Global Supervisor]')) {
     return { role: 'global_supervisor', name: 'Global Supervisor' };
   }
 
