@@ -22,6 +22,10 @@ Auto-generated from all feature plans. Last updated: 2025-12-25
 - TypeScript 5.8.2, React 18.2.0 + React, Lucide React (icons), Vite 6.2.0 (014-topology-report-template)
 - TypeScript 5.8.2 + React 18.2.0, Tailwind CSS, Lucide React (icons) (015-unified-card-style)
 - N/A (UI-only feature) (015-unified-card-style)
+- TypeScript 5.8.2, React 18.2.0 + React, Vite 6.2.0, Lucide React (icons) (016-diagnosis-sse-refactor)
+- N/A (frontend-only, SSE stream consumption) (016-diagnosis-sse-refactor)
+- TypeScript 5.8.2, React 18.2.0 + react-markdown 9.0.1, remark-gfm 4.0.0, mermaid 10.9.0, react-syntax-highlighter (to add) (017-diagnosis-markdown-mermaid)
+- N/A (frontend-only, no persistence) (017-diagnosis-markdown-mermaid)
 
 - TypeScript 5.8, React 18.2 + React, Vite 6.2, Lucide-React (icons) (001-resource-api-integration)
 
@@ -41,9 +45,9 @@ npm test && npm run lint
 TypeScript 5.8, React 18.2: Follow standard conventions
 
 ## Recent Changes
+- 017-diagnosis-markdown-mermaid: Added TypeScript 5.8.2, React 18.2.0 + react-markdown 9.0.1, remark-gfm 4.0.0, mermaid 10.9.0, react-syntax-highlighter (to add)
+- 016-diagnosis-sse-refactor: Added TypeScript 5.8.2, React 18.2.0 + React, Vite 6.2.0, Lucide React (icons)
 - 015-unified-card-style: Added TypeScript 5.8.2 + React 18.2.0, Tailwind CSS, Lucide React (icons)
-- 014-topology-report-template: Added TypeScript 5.8.2, React 18.2.0 + React, Lucide React (icons), Vite 6.2.0
-- 013-agent-config-page: Added TypeScript 5.8.2 + React 18.2.0, React Router DOM 7.11.0, Lucide React 0.303.0, Vite 6.2.0
 
 
 <!-- MANUAL ADDITIONS START -->
