@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { LogMessage } from '../types';
-import { Terminal, ArrowRight, Brain, CheckCircle2, ChevronDown, ChevronRight, Wrench } from 'lucide-react';
+import { Terminal, ArrowRight, Brain, CheckCircle2, ChevronDown, ChevronRight, Wrench, User } from 'lucide-react';
+import { MarkdownContent } from './markdown';
 
 interface LogStreamProps {
   logs: LogMessage[];
@@ -41,7 +42,7 @@ const LogItem: React.FC<LogItemProps> = ({ log, setRef, getStyle, getIcon }) => 
         </span>
       </div>
 
-      {/* Collapsible Reasoning Section (FR-007a) */}
+      {/* Collapsible Reasoning Section (FR-007a) - Now with Markdown support (T015) */}
       {log.reasoning && (
         <div className="ml-8 mb-2">
           <button
@@ -53,19 +54,16 @@ const LogItem: React.FC<LogItemProps> = ({ log, setRef, getStyle, getIcon }) => 
             <span>Thinking...</span>
           </button>
           {isReasoningExpanded && (
-            <div className="mt-2 pl-6 text-sm text-purple-300/80 italic whitespace-pre-wrap border-l-2 border-purple-500/30">
-              {log.reasoning}
+            <div className="mt-2 pl-6 text-sm text-purple-300/80 italic border-l-2 border-purple-500/30">
+              <MarkdownContent content={log.reasoning} className="reasoning-content" />
             </div>
           )}
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="text-slate-300 pl-8 text-sm leading-relaxed whitespace-pre-wrap font-sans relative">
-        {log.content}
-        {log.isStreaming && (
-          <span className="inline-block w-2 h-4 ml-1 align-middle bg-cyan-500 animate-pulse" />
-        )}
+      {/* Main Content - Now with Markdown support (T014) */}
+      <div className="text-slate-300 pl-8 text-sm leading-relaxed font-sans relative">
+        <MarkdownContent content={log.content} isStreaming={log.isStreaming} />
       </div>
 
       {/* Collapsible Tool Calls Section */}
@@ -153,6 +151,7 @@ const LogStream: React.FC<LogStreamProps> = ({ logs, focusTarget }) => {
       case 'thought': return <Brain size={16} className="text-purple-400" />;
       case 'report': return <CheckCircle2 size={16} className="text-green-400" />;
       case 'system': return <Terminal size={16} className="text-slate-500" />;
+      case 'user': return <User size={16} className="text-cyan-400" />;
       default: return <Terminal size={16} className="text-slate-500" />;
     }
   };
@@ -162,6 +161,7 @@ const LogStream: React.FC<LogStreamProps> = ({ logs, focusTarget }) => {
       case 'instruction': return 'border-blue-500/10 bg-blue-950/5';
       case 'thought': return 'border-purple-500/10 bg-purple-950/5';
       case 'report': return 'border-green-500/10 bg-green-950/5';
+      case 'user': return 'border-cyan-500/20 bg-cyan-950/10 ml-auto max-w-[80%]';
       default: return 'border-transparent hover:bg-slate-900/30';
     }
   };

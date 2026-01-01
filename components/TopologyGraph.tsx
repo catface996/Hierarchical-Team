@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { Topology, TopologyLink } from '../types';
 import { useTopology } from '../services/hooks/useTopology';
@@ -185,9 +185,10 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
   } = useTopology(resourceId ?? null, { autoFetch: !!resourceId });
 
 
-  // Use API data or static data
-  const data: Topology | null = resourceId && apiTopology
-    ? {
+  // Use API data or static data - memoized to prevent unnecessary D3 re-renders
+  const data = useMemo<Topology | null>(() => {
+    if (resourceId && apiTopology) {
+      return {
         nodes: apiTopology.nodes.map(n => ({
           id: n.id,
           label: n.label,
@@ -204,8 +205,10 @@ const TopologyGraph: React.FC<TopologyGraphProps> = ({
           confidence: l.confidence,
           relationshipId: l.relationshipId,
         })),
-      }
-    : staticData ?? null;
+      };
+    }
+    return staticData ?? null;
+  }, [resourceId, apiTopology, staticData]);
 
   // Determine render state - but DON'T return early, just use for conditional rendering
   const isLoading = resourceId && apiLoading;

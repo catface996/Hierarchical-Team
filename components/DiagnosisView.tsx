@@ -175,38 +175,51 @@ function aggregateEventsToLogs(events: ExecutorEvent[], isExecuting: boolean): L
   if (events.length === 0) return [];
 
   const logs: LogMessage[] = [];
-  let currentLog: LogMessage | null = null;
-  let currentAgentId: string | null = null;
+  // Track current bubble per agent and their last event time
+  const agentBubbles = new Map<string, { log: LogMessage; lastEventTime: number }>();
   let lastKnownAgent: { id: string; name: string } | null = null;
+
+  // If an agent has no events for this long, next event starts a new bubble
+  const TURN_THRESHOLD_MS = 1000;
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    let agent = getAgentIdentifier(event);
     const eventKey = `${event.event.category}.${event.event.action}`;
+    const eventTimestamp = new Date(event.timestamp).getTime();
+
+    // Skip lifecycle events
+    if (event.event.category === 'lifecycle') {
+      continue;
+    }
+
+    let agent = getAgentIdentifier(event);
 
     // If agent is 'system' (fallback) and we have a last known agent, use that instead
-    // This handles events where source is null but should continue with previous agent
     if (agent.id === 'system' && lastKnownAgent && event.event.category !== 'lifecycle') {
       agent = lastKnownAgent;
     } else if (agent.id !== 'system') {
-      // Update last known agent when we successfully identify one
       lastKnownAgent = agent;
     }
 
-    // Check if we should start a new log message
-    const shouldStartNewLog = currentAgentId !== agent.id || !currentLog;
+    // Check if this agent has an active bubble
+    const existing = agentBubbles.get(agent.id);
+    const timeSinceLastAgentEvent = existing ? eventTimestamp - existing.lastEventTime : Infinity;
 
-    if (shouldStartNewLog) {
-      // Finalize current log
-      if (currentLog) {
-        currentLog.isStreaming = false;
-        logs.push(currentLog);
+    // Start new bubble if:
+    // 1. No existing bubble for this agent, OR
+    // 2. This agent's last event was too long ago (new turn/round)
+    let currentLog: LogMessage;
+    if (!existing || timeSinceLastAgentEvent > TURN_THRESHOLD_MS) {
+      // Finalize existing bubble if any
+      if (existing) {
+        existing.log.isStreaming = false;
+        logs.push(existing.log);
       }
 
-      currentAgentId = agent.id;
+      // Create new bubble
       currentLog = {
         id: `exec-${event.timestamp}-${i}`,
-        timestamp: new Date(event.timestamp).getTime(),
+        timestamp: eventTimestamp,
         fromAgentId: agent.id,
         fromAgentName: agent.name,
         content: '',
@@ -215,69 +228,68 @@ function aggregateEventsToLogs(events: ExecutorEvent[], isExecuting: boolean): L
         reasoning: undefined,
         toolCalls: undefined,
       };
+      agentBubbles.set(agent.id, { log: currentLog, lastEventTime: eventTimestamp });
+    } else {
+      // Append to existing bubble
+      currentLog = existing.log;
+      existing.lastEventTime = eventTimestamp;
     }
 
     // Handle different event types
-    if (currentLog) {
-      switch (eventKey) {
-        case 'llm.stream': {
-          // FR-005: Aggregate stream content
-          const streamData = event.data as LlmStreamData;
-          currentLog.content += streamData.content || '';
-          break;
-        }
+    switch (eventKey) {
+      case 'llm.stream': {
+        const streamData = event.data as LlmStreamData;
+        currentLog.content += streamData.content || '';
+        break;
+      }
 
-        case 'llm.reasoning': {
-          // FR-007a: Accumulate reasoning into separate field
-          const reasoningData = event.data as LlmReasoningData;
-          if (reasoningData.thought) {
-            currentLog.reasoning = (currentLog.reasoning || '') + reasoningData.thought;
+      case 'llm.reasoning': {
+        const reasoningData = event.data as LlmReasoningData;
+        if (reasoningData.thought) {
+          currentLog.reasoning = (currentLog.reasoning || '') + reasoningData.thought;
+        }
+        break;
+      }
+
+      case 'llm.tool_call': {
+        const toolData = event.data as LlmToolCallData;
+        if (!currentLog.toolCalls) currentLog.toolCalls = [];
+        currentLog.toolCalls.push({
+          tool: toolData.tool,
+          args: toolData.args,
+        });
+        break;
+      }
+
+      case 'llm.tool_result': {
+        const resultData = event.data as LlmToolResultData;
+        if (currentLog.toolCalls) {
+          const toolCall = currentLog.toolCalls.find(tc => tc.tool === resultData.tool && tc.result === undefined);
+          if (toolCall) {
+            toolCall.result = resultData.result;
           }
-          break;
         }
+        break;
+      }
 
-        case 'llm.tool_call': {
-          // Track tool calls
-          const toolData = event.data as LlmToolCallData;
-          if (!currentLog.toolCalls) currentLog.toolCalls = [];
-          currentLog.toolCalls.push({
-            tool: toolData.tool,
-            args: toolData.args,
-          });
-          break;
+      default: {
+        const content = getEventContent(event);
+        if (content) {
+          currentLog.content += content;
         }
-
-        case 'llm.tool_result': {
-          // Match tool result to existing tool call
-          const resultData = event.data as LlmToolResultData;
-          if (currentLog.toolCalls) {
-            const toolCall = currentLog.toolCalls.find(tc => tc.tool === resultData.tool && tc.result === undefined);
-            if (toolCall) {
-              toolCall.result = resultData.result;
-            }
-          }
-          break;
-        }
-
-        // Lifecycle and other events - use formatted content
-        default: {
-          const content = getEventContent(event);
-          if (content) {
-            currentLog.content += content;
-          }
-          break;
-        }
+        break;
       }
     }
   }
 
-  // Add the last log
-  if (currentLog) {
-    currentLog.isStreaming = isExecuting;
-    logs.push(currentLog);
-  }
+  // Add remaining active bubbles
+  agentBubbles.forEach(({ log }) => {
+    log.isStreaming = isExecuting;
+    logs.push(log);
+  });
 
-  return logs;
+  // Sort by timestamp to maintain chronological order
+  return logs.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 interface DiagnosisViewProps {
@@ -426,6 +438,9 @@ const DiagnosisView: React.FC<DiagnosisViewProps> = ({
   // User query input state
   const [userQuery, setUserQuery] = useState('');
 
+  // User messages state - messages sent by the user
+  const [userMessages, setUserMessages] = useState<LogMessage[]>([]);
+
   // Multi-agent execution with SSE streaming
   const {
     trigger: triggerExecution,
@@ -448,9 +463,12 @@ const DiagnosisView: React.FC<DiagnosisViewProps> = ({
   });
 
   // Convert execution events to log messages, aggregating consecutive events from same agent
+  // User messages appear first, then execution logs (no sorting to preserve aggregation)
   const logs = useMemo<LogMessage[]>(() => {
-    return aggregateEventsToLogs(executionEvents, isExecuting);
-  }, [executionEvents, isExecuting]);
+    const executionLogs = aggregateEventsToLogs(executionEvents, isExecuting);
+    // User messages first, then execution logs in their original aggregated order
+    return [...userMessages, ...executionLogs];
+  }, [executionEvents, isExecuting, userMessages]);
 
   // Track currently active agent from the last execution event (only during execution)
   // Uses agentId (boundId) from SSE events for accurate matching
@@ -495,9 +513,27 @@ const DiagnosisView: React.FC<DiagnosisViewProps> = ({
       return;
     }
 
+    const query = userQuery.trim();
+    const now = Date.now();
+
+    // Add user message to the message list
+    const userMessage: LogMessage = {
+      id: `user-${now}`,
+      timestamp: now,
+      fromAgentId: 'user',
+      fromAgentName: 'You',
+      content: query,
+      type: 'user',
+      isStreaming: false,
+    };
+    setUserMessages(prev => [...prev, userMessage]);
+
+    // Clear input field
+    setUserQuery('');
+
     // Clear previous events and trigger new execution
     clearEvents();
-    triggerExecution(topologyId, userQuery.trim());
+    triggerExecution(topologyId, query);
   }, [isExecuting, userQuery, topologyId, clearEvents, triggerExecution]);
 
   // Handle cancel button click

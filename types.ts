@@ -63,7 +63,7 @@ export interface LogMessage {
   fromAgentName: string;
   toAgentId?: string;
   content: string;
-  type: 'instruction' | 'report' | 'thought' | 'system' | 'discovery';
+  type: 'instruction' | 'report' | 'thought' | 'system' | 'discovery' | 'user';
   isStreaming?: boolean;
   /** Collapsible reasoning content (Feature: 016-diagnosis-sse-refactor) */
   reasoning?: string;
